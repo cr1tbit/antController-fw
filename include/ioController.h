@@ -125,19 +125,25 @@ class O_group : public IoGroup {
 
     bool set_output_bits(uint16_t bits){
       int bit_range = pow(2,out_num);
-      if (bits > bit_range){
+      if (bits >= bit_range){
         // bits are out of range
         Serial.printf("Cannot write bits %04x as it exceeds 0x%04x on %s\n\r",
           bits, bit_range, tag.c_str());
         return false;
       }   
+      Serial.printf("Write bits %04x on %s\n\r",bits, tag.c_str());
       bits &= (0xFFFF >> 16-out_num);      
       bits <<= out_offs;
       bits |= expander->read() & ~(0xFFFF >> 16-out_num << out_offs);
-      Serial.printf("Write bits %04x on %s\n\r",bits, tag.c_str());
-
       expander->write(bits);
       return true;
+    }
+
+    uint16_t get_output_bits(){
+      uint16_t bits = expander->read();
+      bits >>= out_offs;
+      bits &= (0xFFFF >> 16-out_num);
+      return bits;
     }
 
     String ioOperation(String parameter, String value){
@@ -158,7 +164,7 @@ class O_group : public IoGroup {
         } 
       } else if (parameter == "bits"){
         if (value.length() == 0){
-          return "OK: " + String(expander->read());
+          return "OK: " + String(get_output_bits());
         }
         int bits = intFromString(value);
         if ((bits < 0)||(bits > 0xFFFF)){

@@ -1,3 +1,5 @@
 .pio
 .vscode
 lib/*
+
+secrets.h
