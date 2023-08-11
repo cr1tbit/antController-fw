@@ -3,7 +3,7 @@ from time import sleep
 import sys
 
 # configure the serial connection
-ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.2)
 
 # define the commands to send
 commands = [

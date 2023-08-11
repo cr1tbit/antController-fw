@@ -18,7 +18,7 @@
 
 #include "ioController.h"
 
-#define FW_REV "0.5.0"
+#define FW_REV "0.6.0"
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
@@ -186,8 +186,14 @@ void SerialReceiveTask( void * parameter ) {
       
       switch (c){
         case '\r': 
-        Serial.print('\r');  //echo if character accepted
-        break;
+          Serial.print('\r');
+          break;
+        case '\b':
+          if(buf.size() > 0){
+            buf.pop_back();
+            Serial.print("\b \b");
+          }
+          break;
         case '\n': {
           const std::string cmd(buf.begin(), buf.end());
           ALOGE("Op result: {}",handle_api_call(
@@ -198,7 +204,7 @@ void SerialReceiveTask( void * parameter ) {
         default: {
           if(buf.size() <= 40){
             buf.push_back(c);
-            Serial.print(c);  //echo if character accepted
+            Serial.print(c);
           }
         }
       }
