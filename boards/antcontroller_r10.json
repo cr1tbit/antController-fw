@@ -21,11 +21,11 @@
     "arduino",
     "espidf"
   ],
-  "name": "Adafruit ESP32 Feather",
+  "name": "AntController",
   "upload": {
-    "flash_size": "16MB",
+    "flash_size": "4MB",
     "maximum_ram_size": 327680,
-    "maximum_size": 16777216,
+    "maximum_size": 4194304,
     "require_upload_port": true,
     "speed": 921600
   },

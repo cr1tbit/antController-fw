@@ -18,7 +18,7 @@
 
 #include "ioController.h"
 
-#define FW_REV "0.6.0"
+#define FW_REV "0.6.1"
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
