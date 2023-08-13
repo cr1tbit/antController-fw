@@ -1,7 +1,7 @@
 // Ant controller firmware
 // (C) cr1tbit 2023
 
-#include <sstream>
+#include <fmt/ranges.h>
 
 #include <Wire.h>
 #include "WiFi.h"
@@ -11,14 +11,15 @@
 
 #include "commonFwUtils.h"
 #include "alfalog.h"
-#include <fmt/ranges.h>
+#include "advancedOledLogger.h"
 
 #include "pinDefs.h"
 #include "secrets.h"
 
 #include "ioController.h"
 
-#define FW_REV "0.6.1"
+#define FW_REV "0.7.0"
+const int WIFI_TIMEOUT_SEC = 15;
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
@@ -28,12 +29,8 @@ void SerialReceiveTask( void * parameter );
 
 String handle_api_call(const String &subpath, int* ret_code){
   ALOGD("Analyzing subpath: {}", subpath.c_str());
-  //schema is /api/<CMD>/<INDEX>/<VALUE>
+  //schema is <CMD>/<INDEX>/<VALUE>
 
-  ///api/INP/ <- reads in
-  ///api/MOS/ <- reads out
-  ///api/REL/8/on <- sets state of 8 to high
-  ///api/OPT/bits/ <- reads all bits of a channel
   *ret_code = 200; 
 
   output_group_type_t output;
@@ -63,8 +60,8 @@ void initialize_http_server(){
     ALOGE("(Note, in debug build filesystem does not autoformate)");
     return;
   } else {
-    ALOGI("LittleFS init ok.");
-    ALOGI(
+    ALOGD("LittleFS init ok.");
+    ALOGD(
       "Using {}/{} kb.",
       LittleFS.usedBytes()/1024,
       LittleFS.totalBytes()/1024
@@ -94,7 +91,7 @@ void initialize_http_server(){
 
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
-      ALOGD("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
+      ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
     }
     //send event with message "hello!", id current millis
     // and set reconnect delay to 1 second
@@ -118,8 +115,7 @@ void socketAlogHandle(const char* str){
 TwoWire i2c = TwoWire(0);
 SerialLogger serialLogger = SerialLogger(uartPrintAlogHandle, LOG_DEBUG);
 SerialLogger socketLogger = SerialLogger(socketAlogHandle, LOG_DEBUG);
-OledLogger display = OledLogger(i2c, OLED_128x32, LOG_INFO);
-
+AdvancedOledLogger display = AdvancedOledLogger(i2c, OLED_128x32, LOG_INFO);
 
 void setup(){
   Serial.begin(115200);
@@ -136,43 +132,60 @@ void setup(){
 
   i2c.begin(PIN_I2C_SDA, PIN_I2C_SCL);
 
+  display.staticTopBarText = fmt::format(
+    "AntController r. {}", FW_REV); 
+
   AlfaLogger.addBackend(&display);
   AlfaLogger.addBackend(&serialLogger);
-  // AlfaLogger.addBackend(&socketLogger);
   AlfaLogger.begin();
-  ALOGI("logger started");
+  ALOGD("logger started");
 
   ALOGI(
     "i2c device(s) found at:\n0x{:02x}", 
     fmt::join(scan_i2c(i2c), ", 0x"));
 
   IoController.begin(i2c);
-  ALOGI("IoController start");
+  ALOGD("IoController start");
 
+  long conn_attempt_start = millis();
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(3000);
     ALOGI("Connecting WiFi...");
+    if (millis() - conn_attempt_start > WIFI_TIMEOUT_SEC*1000){
+      break;
+    }
   }
-  ALOGI("IP: {}",WiFi.localIP().toString().c_str());
-
-  initialize_http_server();
+  if (WiFi.status() == WL_CONNECTED){
+    ALOGI("IP: {}",WiFi.localIP().toString().c_str());
+    initialize_http_server();
+  } else {
+    ALOGE("WiFi timeout after {}s. "
+    "The board will start in offline mode. "
+    "API is still accesible via serial port.",
+    WIFI_TIMEOUT_SEC);
+  }
 
   xTaskCreate( SerialReceiveTask, "serial task",
     6000, NULL, 2, NULL );
+  
+  ALOGI("Application start!");
 }
 
 int counter = 0;
 void loop()
 {
-  int dummy_ret;
+  int ret_code;
   handle_io_pattern(PIN_LED_STATUS, PATTERN_HBEAT);
   
-  // ALOGD("dupa")
   delay(300);
   if (digitalRead(PIN_BUT4) == LOW){
     ALOGI("Button 4 is pressed - doing test call");
-    handle_api_call("REL/bits/"+String(counter++),&dummy_ret);
+    ALOGI("Test call result: {0}",
+      handle_api_call(
+        "REL/bits/"+String(counter++), &ret_code
+      ).c_str()
+    );
   }
 }
 
@@ -196,8 +209,11 @@ void SerialReceiveTask( void * parameter ) {
           break;
         case '\n': {
           const std::string cmd(buf.begin(), buf.end());
-          ALOGE("Op result: {}",handle_api_call(
-            String(cmd.c_str()), &ret_code).c_str());
+          ALOGE("Op result: {}",
+            handle_api_call(
+              String(cmd.c_str()), &ret_code
+            ).c_str()
+          );
           buf.clear();
           break;
         }

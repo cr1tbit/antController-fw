@@ -53,21 +53,34 @@ class IoGroup {
 
   public:
     String api_action(std::vector<String>& api_call){
-      Serial.printf("API call for tag %s, path len %d\n\r",tag.c_str(),api_call.size());
+      ALOGI("API call for tag {}",
+        tag.c_str(), api_call.size());
       
       String parameter, value;
 
-      if (api_call.size() == 1){
-        return "ERR: no parameter";
-      } else if (api_call.size() == 2){
-        parameter = api_call[1];
-        value = "";
-      } else if (api_call.size() == 3){
-        parameter = api_call[1];
-        value = api_call[2];
+      switch (api_call.size()){
+        case 0:
+        case 1:
+          return "ERR: no parameter";
+        case 2:
+          parameter = api_call[1];
+          value = "";
+          ALOGI("Parameter: {}, no value",
+            parameter.c_str()
+          );
+          break;
+        case 3:
+          parameter = api_call[1];
+          value = api_call[2];
+          ALOGI("Parameter: {}, Value: {}",
+            parameter.c_str(),
+            value.c_str()
+          );
+          break;
+        default:
+          return "ERR: too many parameters";
       }
-
-      Serial.printf("Parameter %s, Value %s\n\r",parameter.c_str(),value.c_str());
+      
       return ioOperation(parameter, value);
     }
 
@@ -110,12 +123,11 @@ class O_group : public IoGroup {
 
       int offs_pin = pin_num + out_offs;
 
-      Serial.printf(
-        "set pin %d %s @ %s\n\r",
+      ALOGD("set pin {} {} @ {}",
         offs_pin,
         val ? "on" : "off",
-        tag.c_str());
-
+        tag.c_str()
+      );
       expander->write(
         (PCA95x5::Port::Port) offs_pin,
         (PCA95x5::Level::Level )val
@@ -127,11 +139,11 @@ class O_group : public IoGroup {
       int bit_range = pow(2,out_num);
       if (bits >= bit_range){
         // bits are out of range
-        Serial.printf("Cannot write bits %04x as it exceeds 0x%04x on %s\n\r",
+        ALOGE("Cannot write bits {:#04x} as it exceeds {:#04x} on {}",
           bits, bit_range, tag.c_str());
         return false;
       }   
-      Serial.printf("Write bits %04x on %s\n\r",bits, tag.c_str());
+      ALOGI("Write bits {:#04x} on {}",bits, tag.c_str());
       bits &= (0xFFFF >> 16-out_num);      
       bits <<= out_offs;
       bits |= expander->read() & ~(0xFFFF >> 16-out_num << out_offs);
@@ -263,13 +275,13 @@ class IoController_ {
       p_exp->direction(PCA95x5::Direction::OUT_ALL);
       bool write_status = p_exp->write(PCA95x5::Level::L_ALL);
 
-      Serial.printf("init exp %02x ",addr);
+      ALOGT("init exp {:#02x}", addr);
 
       if (write_status){
-        Serial.println("Expander OK!");
+        ALOGT("Expander OK!");
         return RET_OK;
       }
-      Serial.println("Expander ERR!");
+      ALOGE("Expander {:#02x} Error! Check the connections", addr);
       return RET_ERR;
     }
 
@@ -298,7 +310,7 @@ class IoController_ {
         }
       }
       String result = "ERR: API call for tag " + api_call[0] + " not found";
-      Serial.println(result);
+      // ALOGE(result.c_str());
       return result;
     }
 };
