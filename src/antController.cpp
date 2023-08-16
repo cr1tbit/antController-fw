@@ -20,7 +20,7 @@
 #include "antController.h"
 #include "configHandler.h"
 
-#define FW_REV "0.7.0"
+#define FW_REV "0.8.0"
 const int WIFI_TIMEOUT_SEC = 15;
 
 AsyncWebServer server(80);
