@@ -17,15 +17,14 @@
 #include "secrets.h"
 
 #include "ioController.h"
+#include "antController.h"
+#include "configHandler.h"
 
 #define FW_REV "0.7.0"
 const int WIFI_TIMEOUT_SEC = 15;
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
-
-void SerialReceiveTask( void * parameter );
-
 
 String handle_api_call(const String &subpath, int* ret_code){
   ALOGD("Analyzing subpath: {}", subpath.c_str());
@@ -53,12 +52,12 @@ String handle_api_call(const String &subpath, int* ret_code){
   return IoController.handleApiCall(api_split);
 }
 
-void initialize_http_server(){
+bool initialize_littleFS(){
   if(!LittleFS.begin(false)){
     ALOGE("An Error has occurred while mounting SPIFFS");
     ALOGE("Is filesystem properly generated and uploaded?");
     ALOGE("(Note, in debug build filesystem does not autoformate)");
-    return;
+    return false;
   } else {
     ALOGD("LittleFS init ok.");
     ALOGD(
@@ -75,7 +74,11 @@ void initialize_http_server(){
         file.name() ,file.size());
       file = root.openNextFile();
     }
+    return true;
   }
+}
+
+void initialize_http_server(){
 
   server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
     int ret_code = 418;
@@ -93,7 +96,7 @@ void initialize_http_server(){
     if(client->lastId()){
       ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
     }
-    //send event with message "hello!", id current millis
+    // send event with message "hello!", id current millis
     // and set reconnect delay to 1 second
     client->send("hello!",NULL,millis(),1000);
   });
@@ -113,7 +116,7 @@ void socketAlogHandle(const char* str){
 }
 
 TwoWire i2c = TwoWire(0);
-SerialLogger serialLogger = SerialLogger(uartPrintAlogHandle, LOG_DEBUG);
+SerialLogger serialLogger = SerialLogger(uartPrintAlogHandle, LOG_DEBUG, ALOG_FANCY);
 SerialLogger socketLogger = SerialLogger(socketAlogHandle, LOG_DEBUG);
 AdvancedOledLogger display = AdvancedOledLogger(i2c, OLED_128x32, LOG_INFO);
 
@@ -147,6 +150,14 @@ void setup(){
   IoController.begin(i2c);
   ALOGD("IoController start");
 
+  if (initialize_littleFS()){
+    ALOGT("LittleFS init ok.");
+    xTaskCreate( TomlTask, "toml task",
+      65536, NULL, 6, NULL );
+  } else {
+    // idk
+  }
+
   long conn_attempt_start = millis();
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -166,7 +177,7 @@ void setup(){
     WIFI_TIMEOUT_SEC);
   }
 
-  xTaskCreate( SerialReceiveTask, "serial task",
+  xTaskCreate( SerialTerminalTask, "serial task",
     6000, NULL, 2, NULL );
   
   ALOGI("Application start!");
@@ -189,7 +200,18 @@ void loop()
   }
 }
 
-void SerialReceiveTask( void * parameter ) {
+const char CONFIG_FILE[] = "/buttons.conf";
+
+void TomlTask (void * parameter){
+  while(1){
+    Config.loadConfig(CONFIG_FILE);
+    ALOGV("Config loaded");
+    Config.printConfig();
+    while(1) vTaskDelay(60000/portTICK_PERIOD_MS);
+  }
+}
+
+void SerialTerminalTask( void * parameter ) {
   std::vector<char> buf;
 
   int ret_code = 0;
@@ -209,7 +231,7 @@ void SerialReceiveTask( void * parameter ) {
           break;
         case '\n': {
           const std::string cmd(buf.begin(), buf.end());
-          ALOGE("Op result: {}",
+          ALOGV("Op result: {}",
             handle_api_call(
               String(cmd.c_str()), &ret_code
             ).c_str()

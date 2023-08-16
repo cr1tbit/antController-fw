@@ -3,3 +3,6 @@
 lib/*
 
 secrets.h
+
+*.out
+result.json

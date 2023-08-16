@@ -1,0 +1,147 @@
+version = "0.1.0"
+
+[[pin]]
+sch_name =     "Z1-1"
+antctrl = "SINK1"
+name =    "QROS"
+descr =   ""
+
+[[pin]]
+sch_name =     "Z1-1"
+antctrl = "SINK1"
+name =    "QROS"
+descr =   ""
+
+[buttons]
+
+[[buttons.a]]
+name =  "160m VERTICAL"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "80m DIPOLE"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "40m YAGI"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "30m YAGI"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "12-17m YAGI"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "20-15-10 KT34XA"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "15m 7EL DWN"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "15m 7EL UP"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "15m STACKER"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "15m STACKER+KT34XA"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+
+[[buttons.b]]
+name =  "PA TRCV"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.b]]
+name =  "PA PA1 QRP" 
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.b]]
+name =  "PA PA2 QRO"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.b]]
+name =  "PA 2XPA"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 160m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 80m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 40m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 30m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 20m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 18m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 15m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 12m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "R140 10m"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.c]]
+name =  "EXT"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+
+[[buttons.d]]
+name =  "ROT LEFT"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.d]]
+name =  "ROT RIGHT"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]

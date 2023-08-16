@@ -1,0 +1,34 @@
+version = "0.1.0"
+
+[[pin]]
+sch =     "Z1-1"
+antctrl = "SINK1"
+name =    "QROS"
+descr =   ""
+
+[[pin]]
+sch =     "Z1-1"
+antctrl = "SINK1"
+name =    "QROS"
+descr =   ""
+
+[buttons]
+
+[[buttons.a]]
+name =  "160m VERTICAL"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "80m DIPOLE"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "40m YAGI"
+descr = ""
+pins = [ "Z2-7", "Z1-1" ]
+
+[[buttons.a]]
+name =  "30m YAGI"
+des
