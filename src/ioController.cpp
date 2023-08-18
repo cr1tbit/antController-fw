@@ -28,10 +28,10 @@ ret_code_t IoController::init_controller_objects(){
     ioGroups.push_back(new I_group(INP,   PIN_IN_BUFF_ENA, &input_pins));
 
     for (auto &e: expanders){
-    e.write(PCA95x5::Level::H_ALL); //for testing set all high by default
+        e.write(PCA95x5::Level::L_ALL);
     }
     for (auto bGroup: Config.button_groups){
-    buttonHandler.resetOutputsForButtonGroup(bGroup.first);  
+        buttonHandler.resetOutputsForButtonGroup(bGroup.first);  
     }
 
     return RET_OK;
