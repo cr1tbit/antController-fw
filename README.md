@@ -67,6 +67,20 @@ E: Op result: OK
 
 Antenna output configuration is stored in buttons.conf file. It has `.toml` syntax, but esp spiffs editor cannot view `.toml` files, so it has to be named `buttons.conf`
 
+Buttons are split between groups, only one button per group can be active, group can also be set to `OFF`
+
+### Loading configuration
+
+The default config sits in /data directory. After editing or on first programming, the filesystem partition must be flashed, using `Project tasks -> Platform -> Upload Filesystem Image` that can be found in platformio extension sidebar
+
+### Editing presets via WebServer
+
+The config can be edited by navigating to `<IP_ADDR>/edit`, for now user/pass is `test`/`test`. The board always loads `button.conf` file on boot, if it's not present, the config will fail.
+
+Be careful, this functionality is provided by `ESPAsyncWebServer` and tends to be buggy sometimes.
+
+### Config file description
+
 There are 2 kinds of objects there:
 
 ``` toml
@@ -78,7 +92,7 @@ descr =   ""        <- optional description for this pin
 ```
 
 ``` toml
-[[buttons.a]]             <- buttons.<x>, setting one of the button in the group disables others
+[[buttons.a]]             <- buttons.<group> 
 name =  "160m VERTICAL"   <- name that will be called by `/BUT/<name>`
 descr = ""                <- optional description for this pin
 pins = [ "Z2-7", "Z1-1" ] <- pins activated by this button, must match <sch> or <name> of a pin.
@@ -86,6 +100,7 @@ pins = [ "Z2-7", "Z1-1" ] <- pins activated by this button, must match <sch> or 
 
 The config is parsed at the start of the board, if any settings are invalid, the buttons will not function.
 
+### Button API
 
 To activate a button preset
 
