@@ -1,7 +1,6 @@
 # antController-fw
 
-
-This device uses state-of-the-art logging library `Alfalog` (Which I'm developing in parallel to this project)
+## Logging
 
 The logs can be seen either via Serial terminal, or on OLED display.
 
@@ -11,6 +10,28 @@ To see the output on serial, there are a couple of possibilities:
 * putty (windows)
 * picocom (linux only) - `picocom /dev/ttyUSB0 -b115200`, exit via `ctrl + A + X` :)
 
+## IO config
+
+Antenna output configuration is stored in buttons.conf file. It has `.toml` syntax, but esp spiffs editor cannot view `.toml` files, so it has to be named `buttons.conf`
+
+There are 2 kinds of objects there:
+
+``` toml
+[[pin]]
+sch =     "Z2-7"    <- custom ID name, based from original schematic
+antctrl = "SINK1"   <- name on antcontroller, must be: SINKx, RLx, OCx, TTLx or INPx
+name =    "QROS"    <- function name of this pin
+descr =   ""        <- optional description for this pin
+```
+
+``` toml
+[[buttons.a]]             <- buttons.<x>, setting one of the button in the group disables others
+name =  "160m VERTICAL"   <- name that will be called by `/BUT/<name>`
+descr = ""                <- optional description for this pin
+pins = [ "Z2-7", "Z1-1" ] <- pins activated by this button, must match <sch> or <name> of a pin.
+```
+
+The config is parsed at the start of the board, if any setting is invalid, the buttons will not work.
 
 ## Web server
 

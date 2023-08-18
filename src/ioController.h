@@ -1,54 +1,29 @@
-#pragma once 
+#ifndef IO_CONTROLLER_H
+#define IO_CONTROLLER_H
 
 #include <Arduino.h>
+#undef B1
 #include <Wire.h>
-#include <PCA95x5.h>
 
 #include <vector>
+
+#include "ioControllerTypes.h"
+#include "configHandler.h"
+#include "pinDefs.h"
+
+#include "buttonHandler.h"
 
 const int EXP_MOS_ADDR = 0x20;
 const int EXP_REL_ADDR = 0x21;
 const int EXP_OPTO_ADDR = 0x22;
 
 
-typedef enum {
-  RET_OK = 0,
-  RET_ERR = -1
-} ret_code_t;
-
-typedef enum {
-  MOSFET = 0,
-  RELAY,
-  OPTO,
-  TTL,
-  OUT_TYPE_COUNT
-} output_group_type_t;
-
-typedef enum {
-  EXP_MOSFETS = 0,
-  EXP_RELAYS,
-  EXP_OPTO_TTL,
-  EXP_COUNT
-} exp_index_t;
-
-typedef struct {
-  PCA9555* p_exp;
-  int out_num;
-  int out_offs;
-} output_group_t;
-
-bool pins_changed = false;
-
-void IRAM_ATTR input_pins_isr() {
-  pins_changed = true;
-  // digitalWrite(PIN_LED_STATUS,~digitalRead(PIN_LED_STATUS));
-}
-
 class IoGroup {
 
   protected:
-    IoGroup(String tag){
-      this->tag = tag;
+    IoGroup(antControllerIoType_t ioType){
+      this->ioType = ioType;
+      this->tag = String(ioTypeMap.at(ioType));
     }
 
   public:
@@ -96,17 +71,19 @@ class IoGroup {
       }
       return str.toInt();
     }
-    
+
+    antControllerIoType_t ioType;
     String tag;
+    virtual void resetOutputs() = 0;
 
   private:
     virtual String ioOperation(String parameter, String value) = 0;
 };
 
-
 class O_group : public IoGroup {
   public:
-    O_group(String tag, PCA9555* p_exp, int out_num, int out_offs): IoGroup(tag){
+    O_group(antControllerIoType_t ioType, PCA9555* p_exp, int out_num, int out_offs)
+     : IoGroup(ioType){
       this->out_num = out_num;
       this->out_offs = out_offs;
 
@@ -190,6 +167,10 @@ class O_group : public IoGroup {
       return is_succ ? "OK" : "ERR";
     }
 
+    void resetOutputs() override{
+      set_output_bits(0x00);
+    }
+
   private:
     PCA9555* expander;
     int out_num;
@@ -198,7 +179,8 @@ class O_group : public IoGroup {
 
 class I_group: public IoGroup {
   public:
-    I_group(String tag, int pin_in_buff_ena, const std::vector<uint8_t> *pins): IoGroup(tag){
+    I_group(antControllerIoType_t ioType, int pin_in_buff_ena, const std::vector<uint8_t> *pins)
+     : IoGroup(ioType){
       this->pin_in_buff_ena = pin_in_buff_ena;
       this->pins = pins;
       enable();
@@ -239,80 +221,43 @@ class I_group: public IoGroup {
       return true;
     }
 
+    void resetOutputs(){};
+
   private:
     int pin_in_buff_ena;
     const std::vector<uint8_t> *pins;
 };
 
-class IoController_ {
 
-  private:
-    IoController_() = default;
+class ButtonHandler;
 
-    TwoWire* _wire;
-    PCA9555 expanders[EXP_COUNT];
-
-    std::vector<IoGroup*> groups;
-
-    ret_code_t init_controller_objects(){
-      init_expander(&expanders[EXP_MOSFETS], EXP_MOS_ADDR );
-      init_expander(&expanders[EXP_RELAYS],  EXP_REL_ADDR );
-      init_expander(&expanders[EXP_OPTO_TTL],EXP_OPTO_ADDR);
-
-      groups.push_back(new O_group("MOS", &expanders[EXP_MOSFETS], 16, 0));
-      groups.push_back(new O_group("REL", &expanders[EXP_RELAYS],  15, 0));
-      groups.push_back(new O_group("OPT", &expanders[EXP_OPTO_TTL], 8, 8));
-      groups.push_back(new O_group("TTL", &expanders[EXP_OPTO_TTL], 8, 0));
-      groups.push_back(new I_group("INP", PIN_IN_BUFF_ENA, &input_pins));
-
-      return RET_OK;
-    }
-
-    ret_code_t init_expander(PCA9555* p_exp, int addr){
-      p_exp->attach(*_wire,addr);
-
-      p_exp->polarity(PCA95x5::Polarity::ORIGINAL_ALL);
-      p_exp->direction(PCA95x5::Direction::OUT_ALL);
-      bool write_status = p_exp->write(PCA95x5::Level::L_ALL);
-
-      ALOGT("init exp {:#02x}", addr);
-
-      if (write_status){
-        ALOGT("Expander OK!");
-        return RET_OK;
-      }
-      ALOGE("Expander {:#02x} Error! Check the connections", addr);
-      return RET_ERR;
-    }
+class IoController {
 
   public:
-
-    // singleton pattern as from 
-    // https://forum.arduino.cc/t/how-to-write-an-arduino-library-with-a-singleton-object/666625
-    static IoController_ &getInstance(){
-        static IoController_ instance;
-        return instance;
-    }
-
-    IoController_(const IoController_ &) = delete; // no copying
-    IoController_ &operator=(const IoController_ &) = delete;
-
+    IoController() : buttonHandler(this) {};
     void begin(TwoWire &wire){
       _wire = &wire;
       init_controller_objects();
     }
+    String handleApiCall(std::vector<String>& api_call);
+    void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
 
-    String handleApiCall(std::vector<String>& api_call){
-      
-      for(IoGroup* group: groups){
-        if (group->tag == api_call[0]){
-          return group->api_action(api_call);
-        }
-      }
-      String result = "ERR: API call for tag " + api_call[0] + " not found";
-      // ALOGE(result.c_str());
-      return result;
-    }
+
+  private:
+    TwoWire* _wire;
+    PCA9555 expanders[EXP_COUNT];
+
+    std::vector<IoGroup*> ioGroups;
+    ButtonHandler buttonHandler;
+
+  ret_code_t init_controller_objects();    
+  ret_code_t init_expander(PCA9555* p_exp, int addr);    
+
+  public:
+
+    
+
+    
 };
 
-IoController_ &IoController = IoController.getInstance();
+#endif // IO_CONTROLLER_H

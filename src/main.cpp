@@ -17,22 +17,23 @@
 #include "secrets.h"
 
 #include "ioController.h"
-#include "antController.h"
+#include "main.h"
 #include "configHandler.h"
 
-#define FW_REV "0.8.0"
+#define FW_REV "0.9.0"
 const int WIFI_TIMEOUT_SEC = 15;
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
+
+
+IoController ioController;
 
 String handle_api_call(const String &subpath, int* ret_code){
   ALOGD("Analyzing subpath: {}", subpath.c_str());
   //schema is <CMD>/<INDEX>/<VALUE>
 
   *ret_code = 200; 
-
-  output_group_type_t output;
 
   std::vector<String>api_split;
   int delimiterIndex = 0;
@@ -49,7 +50,7 @@ String handle_api_call(const String &subpath, int* ret_code){
     return "ivnalid API call: " + subpath;
   }  
 
-  return IoController.handleApiCall(api_split);
+  return ioController.handleApiCall(api_split);
 }
 
 bool initialize_littleFS(){
@@ -90,6 +91,9 @@ void initialize_http_server(){
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", String(), false);
   });
+
+  server.addHandler(new SPIFFSEditor(LittleFS, "test","test"));
+
   server.serveStatic("/", LittleFS, "/");
 
   events.onConnect([](AsyncEventSourceClient *client){
@@ -101,7 +105,6 @@ void initialize_http_server(){
     client->send("hello!",NULL,millis(),1000);
   });
   server.addHandler(&events);
-  server.addHandler(new SPIFFSEditor(LittleFS, "test","test"));
   
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   server.begin();
@@ -118,9 +121,12 @@ void socketAlogHandle(const char* str){
 TwoWire i2c = TwoWire(0);
 SerialLogger serialLogger = SerialLogger(uartPrintAlogHandle, LOG_DEBUG, ALOG_FANCY);
 SerialLogger socketLogger = SerialLogger(socketAlogHandle, LOG_DEBUG);
-AdvancedOledLogger display = AdvancedOledLogger(i2c, OLED_128x32, LOG_INFO);
+AdvancedOledLogger display = AdvancedOledLogger(i2c, OLED_VERSION, LOG_INFO);
 
 void setup(){
+  // #ifdef WAIT_FOR_SERIAL
+  //   delay(2000);
+  // #endif
   Serial.begin(115200);
   Serial.println("============================");
   Serial.println("AntController fw rev. " FW_REV);
@@ -147,8 +153,8 @@ void setup(){
     "i2c device(s) found at:\n0x{:02x}", 
     fmt::join(scan_i2c(i2c), ", 0x"));
 
-  IoController.begin(i2c);
-  ALOGD("IoController start");
+  ioController.begin(i2c);
+  ALOGD("ioController start");
 
   if (initialize_littleFS()){
     ALOGT("LittleFS init ok.");
@@ -178,7 +184,7 @@ void setup(){
   }
 
   xTaskCreate( SerialTerminalTask, "serial task",
-    6000, NULL, 2, NULL );
+    10000, NULL, 2, NULL );
   
   ALOGI("Application start!");
 }
@@ -204,9 +210,14 @@ const char CONFIG_FILE[] = "/buttons.conf";
 
 void TomlTask (void * parameter){
   while(1){
-    Config.loadConfig(CONFIG_FILE);
-    ALOGV("Config loaded");
-    Config.printConfig();
+    if (Config.loadConfig(CONFIG_FILE)){
+      ALOGV("Config loaded");
+      Config.printConfig();
+    } else {
+      vTaskDelay(3000/portTICK_PERIOD_MS);
+      ALOGE("Config load failed");
+    }
+    
     while(1) vTaskDelay(60000/portTICK_PERIOD_MS);
   }
 }

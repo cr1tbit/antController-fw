@@ -1,14 +1,14 @@
 version = "0.1.0"
 
 [[pin]]
-sch_name =     "Z1-1"
+sch =     "Z1-1"
 antctrl = "SINK1"
 name =    "QROS"
 descr =   ""
 
 [[pin]]
-sch_name =     "Z1-1"
-antctrl = "SINK1"
+sch =     "Z1-1"
+antctrl = "DUPA1"
 name =    "QROS"
 descr =   ""
 
