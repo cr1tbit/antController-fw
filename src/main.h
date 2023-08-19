@@ -5,4 +5,4 @@
 
 void SerialTerminalTask( void * parameter );
 void TomlTask( void * parameter );
-String handle_api_call(const String &subpath, int* ret_code);
+std::string handleApiCall(const std::string &subpath, int* ret_code);

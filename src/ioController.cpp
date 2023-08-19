@@ -16,7 +16,7 @@ bool isOutputType(antControllerIoType_t ioType){
 }
 
 
-ret_code_t IoController::init_controller_objects(){
+retCode_t IoController::init_controller_objects(){
     init_expander(&expanders[EXP_MOSFETS], EXP_MOS_ADDR );
     init_expander(&expanders[EXP_RELAYS],  EXP_REL_ADDR );
     init_expander(&expanders[EXP_OPTO_TTL],EXP_OPTO_ADDR);
@@ -37,7 +37,7 @@ ret_code_t IoController::init_controller_objects(){
     return RET_OK;
 }
 
-ret_code_t IoController::init_expander(PCA9555* p_exp, int addr){
+retCode_t IoController::init_expander(PCA9555* p_exp, int addr){
     p_exp->attach(*_wire,addr);
 
     p_exp->polarity(PCA95x5::Polarity::ORIGINAL_ALL);
@@ -54,17 +54,17 @@ ret_code_t IoController::init_expander(PCA9555* p_exp, int addr){
     return RET_ERR;
 }
 
-String IoController::handleApiCall(std::vector<String>& api_call){
+std::string IoController::handleApiCall(std::vector<std::string>& api_call){
 
     if (api_call[0] == "BUT"){
-        return buttonHandler.api_action(api_call)? "OK" : "ERR";
+        return buttonHandler.apiAction(api_call)? "OK" : "ERR";
     }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){
-            return group->api_action(api_call);
+            return group->apiAction(api_call);
         }
     }
-    String result = "ERR: API call for tag " + api_call[0] + " not found";
+    std::string result = "ERR: API call for tag " + api_call[0] + " not found";
     return result;
 }
 

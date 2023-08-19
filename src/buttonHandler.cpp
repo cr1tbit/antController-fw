@@ -23,14 +23,14 @@ bool ButtonHandler::activate_button(const std::string& bGroup, button_t button){
     return true;
 }
 
-bool ButtonHandler::api_action(std::vector<String>& api_call){
+bool ButtonHandler::apiAction(std::vector<std::string>& api_call){
     ALOGI("API call for buttonHandler");
 
     if (api_call.size() < 3){
         return false;
     }
-    std::string buttonGroup = std::string(api_call[1].c_str());
-    std::string buttonName = std::string(api_call[2].c_str());    
+    std::string buttonGroup = api_call[1];
+    std::string buttonName = api_call[2];
 
     if (Config.button_groups.count(buttonGroup) == 0){
         ALOGI("button group {} not found", buttonGroup);

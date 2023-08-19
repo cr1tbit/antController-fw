@@ -6,36 +6,34 @@
 #include <map>
 
 #include <fmt/core.h>
-
 #include <PCA95x5.h>
 
+typedef enum {
+    RET_OK = 0,
+    RET_ERR = -1
+} retCode_t;
 
 typedef enum {
-  RET_OK = 0,
-  RET_ERR = -1
-} ret_code_t;
-
-typedef enum {
-  EXP_MOSFETS = 0,
-  EXP_RELAYS,
-  EXP_OPTO_TTL,
-  EXP_COUNT
-} exp_index_t;
+    EXP_MOSFETS = 0,
+    EXP_RELAYS,
+    EXP_OPTO_TTL,
+    EXP_COUNT
+} expIndex_t;
 
 typedef struct {
-  PCA9555* p_exp;
-  int out_num;
-  int out_offs;
-} output_group_t;
+    PCA9555* p_exp;
+    int out_num;
+    int out_offs;
+} outputGroup_t;
 
 
 typedef enum {
-  MOSFET = 0,
-  RELAY,
-  OPTO,
-  TTL,
-  INP,
-  OUT_TYPE_COUNT
+    MOSFET = 0,
+    RELAY,
+    OPTO,
+    TTL,
+    INP,
+    OUT_TYPE_COUNT
 } antControllerIoType_t;
 
 bool isOutputType(antControllerIoType_t ioType);
@@ -44,11 +42,11 @@ void IRAM_ATTR input_pins_isr();
 
 
 const std::map<antControllerIoType_t, const char*> ioTypeMap = {
-  {MOSFET, "MOS"},
-  {RELAY, "REL"},
-  {OPTO, "OPT"},
-  {TTL, "TTL"},
-  {INP, "INP"}
+    {MOSFET, "MOS"},
+    {RELAY, "REL"},
+    {OPTO, "OPT"},
+    {TTL, "TTL"},
+    {INP, "INP"}
 };
 
 class pin_t{
@@ -60,8 +58,8 @@ public:
     int ioNum;
 
     std::string to_string() const{
-        return fmt::format(
-            "{}: {}[{}] ({})", name, ioTypeMap.at(ioType), ioNum, sch);
+        return fmt::format("{}: {}[{}] ({})", 
+            name, ioTypeMap.at(ioType), ioNum, sch);
     }
 
     int numFromName(const std::string& numText){

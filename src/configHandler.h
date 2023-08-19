@@ -3,7 +3,6 @@
 
 #include <map>
 
-
 #ifdef ESP32
 #include "alfalog.h"
 #include "LittleFS.h"
@@ -80,7 +79,7 @@ public:
             ALOGE("Error parsing toml");
             ALOGE(e.what());
             return false;
-        }        
+        }
     }
 
     void assignPinsToButtonGroup() {
@@ -166,9 +165,7 @@ public:
     std::vector<pin_t> pins;
 };
 
-
 extern Config_ &Config;
-
 
 // once we move to espidf this will work. 
 // void getStackUsed(){

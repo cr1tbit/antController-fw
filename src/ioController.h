@@ -23,15 +23,15 @@ class IoGroup {
   protected:
     IoGroup(antControllerIoType_t ioType){
       this->ioType = ioType;
-      this->tag = String(ioTypeMap.at(ioType));
+      this->tag = std::string(ioTypeMap.at(ioType));
     }
 
   public:
-    String api_action(std::vector<String>& api_call){
+    std::string apiAction(std::vector<std::string>& api_call){
       ALOGI("API call for tag {}",
         tag.c_str(), api_call.size());
       
-      String parameter, value;
+      std::string parameter, value;
 
       switch (api_call.size()){
         case 0:
@@ -59,25 +59,25 @@ class IoGroup {
       return ioOperation(parameter, value);
     }
 
-    int intFromString(String& str){
+    int intFromString(std::string& str){
       if (str.length() == 0){
         return -1;
       }
-      //check if string contains any non-digit characters
+      //check if std::string contains any non-digit characters
       for (int i = 0; i < str.length(); i++){
-        if (!isDigit(str.charAt(i))){
+        if (!isDigit(str.at(i))){
           return -1;
         }
       }
-      return str.toInt();
+      return std::stoi(str);
     }
 
     antControllerIoType_t ioType;
-    String tag;
+    std::string tag;
     virtual void resetOutputs() = 0;
 
   private:
-    virtual String ioOperation(String parameter, String value) = 0;
+    virtual std::string ioOperation(std::string parameter, std::string value) = 0;
 };
 
 class O_group : public IoGroup {
@@ -135,7 +135,7 @@ class O_group : public IoGroup {
       return bits;
     }
 
-    String ioOperation(String parameter, String value){
+    std::string ioOperation(std::string parameter, std::string value){
       bool is_succ = false;
 
       int parameter_int_offs = intFromString(parameter);
@@ -143,17 +143,19 @@ class O_group : public IoGroup {
         //handle calls for specific pin
         parameter_int_offs -= 1; // we want pin numbering from 1
         if (value.length() == 0){
-          return "OK: " + String(expander->read((PCA95x5::Port::Port)parameter_int_offs));
-        } else if (value.indexOf("on") >= 0) {
+          return "OK: " + std::to_string(
+            expander->read(
+              (PCA95x5::Port::Port) parameter_int_offs));
+        } else if (value.find("on") != std::string::npos) {
           is_succ = set_output(parameter_int_offs, true);
-        } else if (value.indexOf("off") >= 0) {
+        } else if (value.find("off") != std::string::npos) {
           is_succ = set_output(parameter_int_offs, false);
         } else {
           return "ERR: invalid value";
         } 
       } else if (parameter == "bits"){
         if (value.length() == 0){
-          return "OK: " + String(get_output_bits());
+          return "OK: " + std::to_string(get_output_bits());
         }
         int bits = intFromString(value);
         if ((bits < 0)||(bits > 0xFFFF)){
@@ -179,51 +181,54 @@ class O_group : public IoGroup {
 
 class I_group: public IoGroup {
   public:
-    I_group(antControllerIoType_t ioType, int pin_in_buff_ena, const std::vector<uint8_t> *pins)
-     : IoGroup(ioType){
-      this->pin_in_buff_ena = pin_in_buff_ena;
-      this->pins = pins;
-      enable();
+    I_group(
+        antControllerIoType_t ioType, 
+        int pin_in_buff_ena, 
+        const std::vector<uint8_t> *pins )
+    : IoGroup(ioType){
+        this->pin_in_buff_ena = pin_in_buff_ena;
+        this->pins = pins;
+        enable();
     }
 
-    ret_code_t enable(){
-      for (int iInput: *pins){  
-        pinMode(iInput, INPUT_PULLDOWN);
-        attachInterrupt(iInput, input_pins_isr, CHANGE);
-      }
+    retCode_t enable(){
+        for (int iInput: *pins){  
+            pinMode(iInput, INPUT_PULLDOWN);
+            attachInterrupt(iInput, input_pins_isr, CHANGE);
+        }
 
-      pinMode(pin_in_buff_ena,OUTPUT);
-      digitalWrite(pin_in_buff_ena,0);
-      return RET_OK;  
+        pinMode(pin_in_buff_ena,OUTPUT);
+        digitalWrite(pin_in_buff_ena,0);
+        return RET_OK;  
     }
 
-    String ioOperation(String parameter, String value){
-      if (parameter == "bits"){
-        uint16_t bits;
-        get_input_bits(&bits);
-        return String(bits);
-      } else {
-        return "ERR: only bitwise read supported";
-      }
+    std::string ioOperation(std::string parameter, std::string value){
+        if (parameter == "bits"){
+            uint16_t bits;
+            get_input_bits(&bits);
+            return std::to_string(bits);
+        } else {
+            return "ERR: only bitwise read supported";
+        }
     }
 
     bool get_input_bits(uint16_t* res){
-      *res = 0;
+        *res = 0;
 
-      for (int iInput = 0; iInput < pins->size(); iInput++){
-        uint8_t pin_to_read = (*pins)[iInput];
-        // Serial.printf("read %d!\n\r",pin_to_read);
-        if (digitalRead(pin_to_read) == true){
-          // Serial.printf("%d ishigh !\n\r",pin_to_read);
-          *res |= (uint16_t)0x01<<iInput;
+        for (int iInput = 0; iInput < pins->size(); iInput++){
+            uint8_t pin_to_read = (*pins)[iInput];
+            // Serial.printf("read %d!\n\r",pin_to_read);
+            if (digitalRead(pin_to_read) == true){
+            // Serial.printf("%d ishigh !\n\r",pin_to_read);
+            *res |= (uint16_t)0x01<<iInput;
+            }
         }
-      }
-      return true;
+        return true;
     }
 
     void resetOutputs(){};
 
-  private:
+private:
     int pin_in_buff_ena;
     const std::vector<uint8_t> *pins;
 };
@@ -233,31 +238,25 @@ class ButtonHandler;
 
 class IoController {
 
-  public:
+public:
     IoController() : buttonHandler(this) {};
     void begin(TwoWire &wire){
       _wire = &wire;
       init_controller_objects();
     }
-    String handleApiCall(std::vector<String>& api_call);
+    std::string handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
 
 
-  private:
+private:
     TwoWire* _wire;
     PCA9555 expanders[EXP_COUNT];
 
     std::vector<IoGroup*> ioGroups;
     ButtonHandler buttonHandler;
 
-  ret_code_t init_controller_objects();    
-  ret_code_t init_expander(PCA9555* p_exp, int addr);    
-
-  public:
-
-    
-
-    
+    retCode_t init_controller_objects();    
+    retCode_t init_expander(PCA9555* p_exp, int addr);        
 };
 
 #endif // IO_CONTROLLER_H
