@@ -75,10 +75,10 @@ void IoController::setOutput(antControllerIoType_t ioType, int pin_num, bool val
         return;
     }
     for (auto& g: ioGroups){
-    if (g->ioType == ioType){
-        O_group* group = (O_group*)g;
-        group->set_output(pin_num, val);
-        return;
-    }
+        if (g->ioType == ioType){
+            O_group* group = (O_group*)g;
+            group->set_output(pin_num, val);
+            return;
+        }
     }
 }

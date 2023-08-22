@@ -6,3 +6,5 @@ secrets.h
 
 *.out
 result.json
+
+merged-flash.bin

@@ -31,6 +31,7 @@ public:
             return false;
         } else {
             std::istringstream istr(file.readString().c_str());
+            // ALOGHD(istr.str().c_str(), istr.str().length());
 
             istr.seekg(0, std::ios::end);
             int size = istr.tellg();

@@ -47,6 +47,7 @@ std::vector<std::string> splitString(const std::string& str, char delimiter) {
 }
 
 std::string handleApiCall(const std::string &subpath, int* ret_code){
+    //TODO add mutex due to serial/http conflict
     ALOGD("Analyzing subpath: {}", subpath.c_str());
     //schema is <CMD>/<INDEX>/<VALUE>
     *ret_code = 200;
@@ -130,7 +131,7 @@ void socketAlogHandle(const char* str){
 TwoWire i2c = TwoWire(0);
 SerialLogger serialLogger = SerialLogger(uartPrintAlogHandle, LOG_DEBUG, ALOG_FANCY);
 SerialLogger socketLogger = SerialLogger(socketAlogHandle, LOG_DEBUG);
-AdvancedOledLogger display = AdvancedOledLogger(i2c, OLED_VERSION, LOG_INFO);
+AdvancedOledLogger aOledLogger = AdvancedOledLogger(i2c, OLED_VERSION, LOG_INFO);
 
 void setup(){
     // #ifdef WAIT_FOR_SERIAL
@@ -150,10 +151,10 @@ void setup(){
 
     i2c.begin(PIN_I2C_SDA, PIN_I2C_SCL);
 
-    display.staticTopBarText = fmt::format(
+    aOledLogger.staticTopBarText = fmt::format(
         "AntController r. {}", FW_REV);
 
-    AlfaLogger.addBackend(&display);
+    AlfaLogger.addBackend(&aOledLogger);
     AlfaLogger.addBackend(&serialLogger);
     AlfaLogger.begin();
     ALOGD("logger started");
@@ -185,7 +186,7 @@ void setup(){
         }
     }
     if (WiFi.status() == WL_CONNECTED){
-        ALOGI("IP: {}",WiFi.localIP().toString().c_str());
+        ALOGI("IP: {}",WiFi.localIP());
         initializeHttpServer();
     } else {
         ALOGE("WiFi timeout after {}s. "
