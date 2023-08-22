@@ -20,8 +20,15 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
+      - name: generate mock secrets header
+        run: cp include/secrets.h.example include/secrets.h
+
       - name: Generate littlefs image
         run: pio run -e antcontroller -t buildfs
     
       - name: Build the project and generate whole binary image
         run: pio run -e antcontroller -t mergebin
+
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
