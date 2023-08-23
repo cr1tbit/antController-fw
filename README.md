@@ -1,3 +1,5 @@
+![Build status](https://github.com/cr1tbit/antcontroller-fw/actions/workflows/create-binary.yml/badge.svg)
+
 # antController-fw
 
 ## Getting started

@@ -1,4 +1,4 @@
-name: PlatformIO CI
+name: Build firmware
 
 on: [push]
 
@@ -17,6 +17,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
@@ -29,6 +30,8 @@ jobs:
       - name: Build the project and generate whole binary image
         run: pio run -e antcontroller -t mergebin
 
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
+      - name: Export compiled binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware.bin
+          path: merged-flash.bin
