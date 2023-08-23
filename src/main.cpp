@@ -47,8 +47,9 @@ std::vector<std::string> splitString(const std::string& str, char delimiter) {
     return result;
 }
 
+SemaphoreHandle_t apiCallSemaphore;
+
 std::string handleApiCall(const std::string &subpath, int* ret_code){
-    //TODO add mutex due to serial/http conflict
     ALOGD("Analyzing subpath: {}", subpath.c_str());
     //schema is <CMD>/<INDEX>/<VALUE>
     *ret_code = 200;
@@ -59,7 +60,18 @@ std::string handleApiCall(const std::string &subpath, int* ret_code){
         return "ivnalid API call: " + subpath;
     }
 
-    return ioController.handleApiCall(api_split);
+    if( apiCallSemaphore == NULL ) {
+        *ret_code = 500;
+        return std::string("API call mutex does not exist.");
+    }
+    if( xSemaphoreTake(apiCallSemaphore, (TickType_t)100) == pdTRUE) {
+        std::string ret = ioController.handleApiCall(api_split);
+        xSemaphoreGive(apiCallSemaphore);
+        return ret;
+    } else {
+        *ret_code = 500;
+        return std::string("Timeout waiting for API call mutex.");
+    }
 }
 
 bool initializeLittleFS(){
@@ -162,7 +174,7 @@ void setup(){
     i2c.begin(PIN_I2C_SDA, PIN_I2C_SCL);
 
     aOledLogger.setTopBarText(
-        BAR_WIFI_IP, "AntController r. {}" FW_REV);
+        BAR_WIFI_IP, "AntController r. " FW_REV);
 
     AlfaLogger.addBackend(&aOledLogger);
     AlfaLogger.addBackend(&serialLogger);
@@ -186,6 +198,10 @@ void setup(){
         // idk
     }
 
+    apiCallSemaphore = xSemaphoreCreateMutex();
+    xTaskCreate( SerialTerminalTask, "serial task",
+                10000, NULL, 2, NULL );
+
     #ifdef USE_SECRETS_H
     long conn_attempt_start = millis();
     WiFi.begin(ssid, password);
@@ -206,12 +222,14 @@ void setup(){
         WIFI_TIMEOUT_SEC);
     }
     #else
+    WiFiSettings.onWaitLoop = []() { 
+        ALOGI("Connecting WiFi..."); 
+        return 3000; 
+    };
     WiFiSettings.connect();//will require board reboot after setup
+    ALOGI("IP: {}",WiFi.localIP());
     initializeHttpServer();
-    #endif
-
-    xTaskCreate( SerialTerminalTask, "serial task",
-                10000, NULL, 2, NULL );
+    #endif    
 
     ALOGI("Application start!");
 }
@@ -222,7 +240,9 @@ void loop()
     int ret_code;
     handle_io_pattern(PIN_LED_STATUS, PATTERN_HBEAT);
 
-    delay(300);
+    aOledLogger.redraw();
+
+    delay(500);
     if (digitalRead(PIN_BUT4) == LOW){
         ALOGI("Button 4 is pressed - doing test call");
         ALOGI("Test call result: {0}",
