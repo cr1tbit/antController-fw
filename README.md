@@ -21,6 +21,12 @@ pio run -e antcontroller -t mergebin
 pio run -e antcontroller -t flashall
 ```
 
+User can also flash an binary artifact that can be found under `Actions` tab on repo.
+
+``` bash
+esptool.py write_flash 0x0 merged-flash.bin
+```
+
 ## Logging
 
 The logs can be seen either via Serial terminal, or on OLED display.
