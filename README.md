@@ -1,5 +1,24 @@
 # antController-fw
 
+## Getting started
+
+This project utilizes platformio IDE, which can be obtained by downloading platformio extension for visual studio code.
+
+The project configuration sits in `platformio.ini`. In order for platformio to recognise it, open the directory that contains it. Then all the dependencies should be automatically installed, and the project should build effortlessly.
+
+In order to get the board working, user must flash both firmware and filesystem partition.
+
+This can be done via platformio GUI. For creating a release binary, a simple helper script has been included. User must run 3 commands from platformio terminal:
+
+``` bash
+# build filesystem image with files from data/ dir
+pio run -e antcontroller -t buildfs
+# merge firmware binary with the filesystem - merged-flash.bin will be created
+pio run -e antcontroller -t mergebin
+# flash merged-flash.bin to the ESP
+pio run -e antcontroller -t flashall
+```
+
 ## Logging
 
 The logs can be seen either via Serial terminal, or on OLED display.
@@ -10,10 +29,17 @@ To see the output on serial, there are a couple of possibilities:
 * putty (windows)
 * picocom (linux only) - `picocom /dev/ttyUSB0 -b115200`, exit via `ctrl + A + X` :)
 
-## Web server
+## Internet connectivity
 
-To get the device's IP you can peek through logs on serial port, or check the top bar on the OLED screen (if available).
+This project utilizes `WifiSettings` library, which will create an hotspot in case there's no valid WiFi configuration. After putting the credentials in, the board must be restarted via button on the webpage.
 
+User can pre-program their own credentials, by creating 2 files in `data/` directory: 
+ * `wifi-ssid` with network name
+ * `wifi-password` with password.
+
+Storing your network credentials in an unencrypted file, either on your desktop machine, or esp32's (external and unencrypted!) flash chip is a potential vector of attack, keep that in mind. As always, S in IoT stands for security.
+
+After connecting to the network succesfully, to get the device's IP you can peek through logs on serial port, or check the top bar on the OLED screen (if available).
 
 ## API description
 

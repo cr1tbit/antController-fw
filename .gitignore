@@ -8,3 +8,5 @@ secrets.h
 result.json
 
 merged-flash.bin
+
+data/wifi-*
