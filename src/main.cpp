@@ -21,7 +21,7 @@
 #include "main.h"
 #include "configHandler.h"
 
-#define FW_REV "0.9.1"
+#define FW_REV "0.10.0"
 const int WIFI_TIMEOUT_SEC = 15;
 const char CONFIG_FILE[] = "/buttons.conf";
 
