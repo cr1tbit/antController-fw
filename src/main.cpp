@@ -8,6 +8,7 @@
 #include "ESPAsyncWebServer.h"
 #include "LittleFS.h"
 #include <SPIFFSEditor.h>
+#include <WiFiSettings.h>
 
 #include "commonFwUtils.h"
 #include "alfalog.h"
@@ -88,6 +89,10 @@ bool initializeLittleFS(){
 }
 
 void initializeHttpServer(){
+    server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(LittleFS, CONFIG_FILE, "text/plain", false);
+    });
+
     server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
         int ret_code = 418;
 
@@ -98,13 +103,13 @@ void initializeHttpServer(){
         request->send(ret_code, "text/plain", api_result.c_str());
     });
 
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(LittleFS, "/index.html", "text/html", false);
-    });
-
     server.addHandler(new SPIFFSEditor(LittleFS, "test","test"));
 
-    server.serveStatic("/", LittleFS, "/");
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(LittleFS, "/static/index.html", "text/html", false);
+    });
+
+    server.serveStatic("/", LittleFS, "/static/");
 
     events.onConnect([](AsyncEventSourceClient *client){
         if(client->lastId()){
@@ -129,9 +134,14 @@ void socketAlogHandle(const char* str){
 }
 
 TwoWire i2c = TwoWire(0);
-SerialLogger serialLogger = SerialLogger(uartPrintAlogHandle, LOG_DEBUG, ALOG_FANCY);
-SerialLogger socketLogger = SerialLogger(socketAlogHandle, LOG_DEBUG);
-AdvancedOledLogger aOledLogger = AdvancedOledLogger(i2c, OLED_VERSION, LOG_INFO);
+SerialLogger serialLogger = SerialLogger(
+    uartPrintAlogHandle, LOG_DEBUG, ALOG_FANCY);
+
+SerialLogger socketLogger = SerialLogger(
+    socketAlogHandle, LOG_DEBUG);
+
+AdvancedOledLogger aOledLogger = AdvancedOledLogger(
+    i2c, LOG_INFO, OLED_128x64, OLED_NORMAL);
 
 void setup(){
     // #ifdef WAIT_FOR_SERIAL
@@ -151,8 +161,8 @@ void setup(){
 
     i2c.begin(PIN_I2C_SDA, PIN_I2C_SCL);
 
-    aOledLogger.staticTopBarText = fmt::format(
-        "AntController r. {}", FW_REV);
+    aOledLogger.setTopBarText(
+        BAR_WIFI_IP, "AntController r. {}" FW_REV);
 
     AlfaLogger.addBackend(&aOledLogger);
     AlfaLogger.addBackend(&serialLogger);
@@ -176,6 +186,7 @@ void setup(){
         // idk
     }
 
+    #ifdef USE_SECRETS_H
     long conn_attempt_start = millis();
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
@@ -194,6 +205,10 @@ void setup(){
         "API is still accesible via serial port.",
         WIFI_TIMEOUT_SEC);
     }
+    #else
+    WiFiSettings.connect();//will require board reboot after setup
+    initializeHttpServer();
+    #endif
 
     xTaskCreate( SerialTerminalTask, "serial task",
                 10000, NULL, 2, NULL );
