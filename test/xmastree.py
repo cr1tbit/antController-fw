@@ -5,7 +5,7 @@ import random
 
 
 # configure the serial connection
-ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.2)
+ser = serial.Serial('/dev/ttyUSB1', 115200, timeout=0.2)
 
 # define the commands to send
 commands = [

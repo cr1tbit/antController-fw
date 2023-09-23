@@ -21,13 +21,18 @@
 #include "main.h"
 #include "configHandler.h"
 
-#define FW_REV "0.10.0"
+#define FW_REV "0.11.0"
 const int WIFI_TIMEOUT_SEC = 15;
 const char CONFIG_FILE[] = "/buttons.conf";
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
 
+char* getInitialMessage(){
+    return    
+    "AntController fw rev. " FW_REV "\n\r"
+    "Compiled " __DATE__ " " __TIME__;
+}
 
 IoController ioController;
 
@@ -57,7 +62,7 @@ std::string handleApiCall(const std::string &subpath, int* ret_code){
     auto api_split = splitString(subpath, '/');
 
     if (api_split.size() == 0){
-        return "ivnalid API call: " + subpath;
+        return "invnalid API call: " + subpath;
     }
 
     if( apiCallSemaphore == NULL ) {
@@ -111,7 +116,7 @@ void initializeHttpServer(){
         std::string apiTrimmed = std::string(request->url().c_str()).substr(5);
         std::string api_result = handleApiCall(apiTrimmed, &ret_code);
 
-        ALOGD("API call result:\n%s\n",api_result.c_str());
+        ALOGD("API call result:\n{}\n",api_result.c_str());
         request->send(ret_code, "text/plain", api_result.c_str());
     });
 
@@ -129,7 +134,7 @@ void initializeHttpServer(){
         }
         // send event with message "hello!", id current millis
         // and set reconnect delay to 1 second
-        client->send("hello!",NULL,millis(),1000);
+        client->send(getInitialMessage(), NULL, millis(), 1000);
     });
     server.addHandler(&events);
 
@@ -160,9 +165,7 @@ void setup(){
     //         delay(2000);
     // #endif
     Serial.begin(115200);
-    Serial.println("============================");
-    Serial.println("AntController fw rev. " FW_REV);
-    Serial.println("Compiled " __DATE__ " " __TIME__);
+    Serial.println(getInitialMessage());
 
     pinMode(PIN_LED_STATUS, OUTPUT);
     digitalWrite(PIN_LED_STATUS,HIGH);
@@ -178,6 +181,8 @@ void setup(){
 
     AlfaLogger.addBackend(&aOledLogger);
     AlfaLogger.addBackend(&serialLogger);
+    AlfaLogger.addBackend(&socketLogger);
+    
     AlfaLogger.begin();
     ALOGD("logger started");
 
@@ -243,6 +248,7 @@ void loop()
     aOledLogger.redraw();
 
     delay(500);
+    counter++;
     if (digitalRead(PIN_BUT4) == LOW){
         ALOGI("Button 4 is pressed - doing test call");
         ALOGI("Test call result: {0}",
@@ -250,6 +256,9 @@ void loop()
                 "REL/bits/"+std::to_string(counter++), &ret_code
             ).c_str()
         );
+    }
+    if (counter%20 == 0){
+        socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
     }
 }
 

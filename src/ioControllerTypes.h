@@ -152,4 +152,10 @@ typedef struct {
     }
 } buttonGroup_t;
 
+typedef struct {
+    const pin_t* input;
+    bool when;
+    const pin_t* disable;
+} condRule_t;
+
 #endif // IO_CONTROLLER_TYPES_H

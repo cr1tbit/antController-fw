@@ -72,6 +72,28 @@ public:
                     button_groups[bg.first].buttons.push_back(button);
                 }
             }
+            try {
+                const auto _condrules = toml::find(data, "cond");
+
+                for(const auto& cr : _condrules.as_array()){
+                    condRule_t rule;
+
+                    std::string inputName = toml::find<std::string>(cr,"input");
+                    std::string disableName = toml::find<std::string>(cr,"disable");
+                    rule.when = toml::find<int>(cr,"when");
+
+                    const pin_t& pin = getPinByName(inputName, false);
+                    rule.input = &pin;
+
+                    const pin_t& pin2 = getPinByName(disableName, false);
+                    rule.disable = &pin2;
+
+                    rules.push_back(rule);
+                }
+            } catch (std::out_of_range& e){
+                ALOGI("No cond rules found", e.what());
+            }
+            attachInterruptsToCondPins();
             assignPinsToButtonGroup();
             is_valid = true;
             printConfig();
@@ -80,6 +102,14 @@ public:
             ALOGE("Error parsing toml");
             ALOGE(e.what());
             return false;
+        }
+    }
+
+    void attachInterruptsToCondPins(){
+        for (auto& rule : rules){
+            if (rule.input->ioType == INP){
+                
+            }
         }
     }
 
@@ -164,6 +194,7 @@ public:
     std::map<std::string, buttonGroup_t> button_groups;
     std::map<std::string, std::vector<const pin_t*>> pins_by_group;
     std::vector<pin_t> pins;
+    std::vector<condRule_t> rules;
 };
 
 extern Config_ &Config;
