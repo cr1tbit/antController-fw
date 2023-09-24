@@ -59,6 +59,10 @@ class IoGroup {
       return ioOperation(parameter, value);
     }
 
+    std::string getState(){
+      return ioOperation("bits", "");
+    }
+
     int intFromString(std::string& str){
       if (str.length() == 0){
         return -1;
@@ -246,7 +250,7 @@ public:
     }
     std::string handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
-
+    std::string getIoState(std::vector<std::string>& api_call);
 
 private:
     TwoWire* _wire;
@@ -256,7 +260,7 @@ private:
     ButtonHandler buttonHandler;
 
     retCode_t init_controller_objects();    
-    retCode_t init_expander(PCA9555* p_exp, int addr);        
+    retCode_t init_expander(PCA9555* p_exp, int addr);  
 };
 
 #endif // IO_CONTROLLER_H

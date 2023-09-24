@@ -21,18 +21,10 @@
 #include "main.h"
 #include "configHandler.h"
 
-#define FW_REV "0.11.0"
-const int WIFI_TIMEOUT_SEC = 15;
 const char CONFIG_FILE[] = "/buttons.conf";
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
-
-char* getInitialMessage(){
-    return    
-    "AntController fw rev. " FW_REV "\n\r"
-    "Compiled " __DATE__ " " __TIME__;
-}
 
 IoController ioController;
 
@@ -54,7 +46,7 @@ std::vector<std::string> splitString(const std::string& str, char delimiter) {
 
 SemaphoreHandle_t apiCallSemaphore;
 
-std::string handleApiCall(const std::string &subpath, int* ret_code){
+std::string mainHandleApiCall(const std::string &subpath, int* ret_code){
     ALOGD("Analyzing subpath: {}", subpath.c_str());
     //schema is <CMD>/<INDEX>/<VALUE>
     *ret_code = 200;
@@ -114,7 +106,7 @@ void initializeHttpServer(){
         int ret_code = 418;
 
         std::string apiTrimmed = std::string(request->url().c_str()).substr(5);
-        std::string api_result = handleApiCall(apiTrimmed, &ret_code);
+        std::string api_result = mainHandleApiCall(apiTrimmed, &ret_code);
 
         ALOGD("API call result:\n{}\n",api_result.c_str());
         request->send(ret_code, "text/plain", api_result.c_str());
@@ -132,9 +124,7 @@ void initializeHttpServer(){
         if(client->lastId()){
                 ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
         }
-        // send event with message "hello!", id current millis
-        // and set reconnect delay to 1 second
-        client->send(getInitialMessage(), NULL, millis(), 1000);
+        client->send(alogGetInitString(), NULL, millis(), 1000);
     });
     server.addHandler(&events);
 
@@ -165,7 +155,7 @@ void setup(){
     //         delay(2000);
     // #endif
     Serial.begin(115200);
-    Serial.println(getInitialMessage());
+    Serial.println(alogGetInitString());
 
     pinMode(PIN_LED_STATUS, OUTPUT);
     digitalWrite(PIN_LED_STATUS,HIGH);
@@ -185,10 +175,7 @@ void setup(){
     
     AlfaLogger.begin();
     ALOGD("logger started");
-
-    ALOGI(
-        "i2c device(s) found at:\n0x{:02x}",
-        fmt::join(scan_i2c(i2c), ", 0x"));
+    ALOG_I2CLS(i2c);
 
     ioController.begin(i2c);
     ALOGD("ioController start");
@@ -199,34 +186,12 @@ void setup(){
         // has hardcoded 8kb stack size
         xTaskCreate( TomlTask, "toml task",
                 65536, NULL, 6, NULL );
-    } else {
-        // idk
-    }
+    } else { /*idk*/ }
 
     apiCallSemaphore = xSemaphoreCreateMutex();
     xTaskCreate( SerialTerminalTask, "serial task",
                 10000, NULL, 2, NULL );
 
-    #ifdef USE_SECRETS_H
-    long conn_attempt_start = millis();
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(3000);
-        ALOGI("Connecting WiFi...");
-        if (millis() - conn_attempt_start > WIFI_TIMEOUT_SEC*1000){
-                break;
-        }
-    }
-    if (WiFi.status() == WL_CONNECTED){
-        ALOGI("IP: {}",WiFi.localIP());
-        initializeHttpServer();
-    } else {
-        ALOGE("WiFi timeout after {}s. "
-        "The board will start in offline mode. "
-        "API is still accesible via serial port.",
-        WIFI_TIMEOUT_SEC);
-    }
-    #else
     WiFiSettings.onWaitLoop = []() { 
         ALOGI("Connecting WiFi..."); 
         return 3000; 
@@ -234,7 +199,6 @@ void setup(){
     WiFiSettings.connect();//will require board reboot after setup
     ALOGI("IP: {}",WiFi.localIP());
     initializeHttpServer();
-    #endif    
 
     ALOGI("Application start!");
 }
@@ -252,7 +216,7 @@ void loop()
     if (digitalRead(PIN_BUT4) == LOW){
         ALOGI("Button 4 is pressed - doing test call");
         ALOGI("Test call result: {0}",
-            handleApiCall(
+            mainHandleApiCall(
                 "REL/bits/"+std::to_string(counter++), &ret_code
             ).c_str()
         );
@@ -305,9 +269,9 @@ void SerialTerminalTask(void *parameter)
             {
                 const std::string cmd(buf.begin(), buf.end());
                 ALOGV("Op result: {}",
-                        handleApiCall(
-                            cmd, &ret_code)
-                            .c_str());
+                    mainHandleApiCall(
+                        cmd, &ret_code)
+                        .c_str());
                 buf.clear();
                 break;
             }

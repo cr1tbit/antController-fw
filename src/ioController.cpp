@@ -54,10 +54,23 @@ retCode_t IoController::init_expander(PCA9555* p_exp, int addr){
     return RET_ERR;
 }
 
+
+std::string IoController::getIoState(std::vector<std::string>& api_call){
+    std::string ret = "";
+
+    for (auto& g: ioGroups){
+        ret += fmt::format("{}: {}\n\r",g->tag, g->getState());        
+    }
+    return ret;
+}
+
 std::string IoController::handleApiCall(std::vector<std::string>& api_call){
 
     if (api_call[0] == "BUT"){
         return buttonHandler.apiAction(api_call)? "OK" : "ERR";
+    }
+    if (api_call[0] == "INF"){
+        return getIoState(api_call);
     }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){
