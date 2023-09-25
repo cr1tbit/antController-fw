@@ -7,25 +7,39 @@
 #include "ioController.h"
 
 void ButtonHandler::getState(DynamicJsonDocument& jsonRef){
-    JsonObject buttonHandlerData = jsonRef.createNestedObject("buttonHandler");
+    JsonObject buttonHandlerData = jsonRef.createNestedObject("BUT");
     buttonHandlerData["status"] = "OK";
+    JsonObject buttonJson = buttonHandlerData.createNestedObject("groups");
+
+    for(auto& bGroup: Config.button_groups){
+        buttonJson[bGroup.first] = bGroup.second.currentButtonName;        
+    }
     return;
 }
 
 void ButtonHandler::resetOutputsForButtonGroup(const std::string& bGroup){
-    for (auto pin: Config.pins_by_group[bGroup]){
-        dad->setOutput(pin->ioType, pin->ioNum, false);
+    // for (auto pin: Config.pins_by_group[bGroup]){
+    //     dad->setOutput(pin->ioType, pin->ioNum, false);
+    // }
+    for (auto& button: Config.button_groups[bGroup].buttons){
+        for (auto& pinName: button.pinNames){
+            const pin_t pin = Config.getPinByName(pinName);
+            dad->setOutput(pin.ioType, pin.ioNum, false);
+        }
     }
+    Config.button_groups[bGroup].currentButtonName = "OFF";
 } 
 
-bool ButtonHandler::activate_button(const std::string& bGroup, button_t button){
-    ALOGI("activate button {} in group {}", button.name, bGroup);
-    resetOutputsForButtonGroup(bGroup);
+bool ButtonHandler::activate_button(const std::string& bGroupName, button_t button){
+    ALOGI("activate button {} in group {}", button.name, bGroupName);
+    resetOutputsForButtonGroup(bGroupName);
 
     for (auto& pinName: button.pinNames){
         const pin_t pin = Config.getPinByName(pinName);
         dad->setOutput(pin.ioType, pin.ioNum, true);
     }
+    Config.button_groups[bGroupName].currentButtonName = button.name;
+
     return true;
 }
 

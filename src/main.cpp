@@ -29,6 +29,8 @@ AsyncEventSource events("/events");
 
 IoController ioController;
 
+bool shouldPostSocketUpdate = false;
+
 std::vector<std::string> splitString(const std::string& str, char delimiter) {
     std::vector<std::string> result;
     std::string::size_type start = 0;
@@ -75,6 +77,7 @@ DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code)
     }
     if( xSemaphoreTake(apiCallSemaphore, (TickType_t)100) == pdTRUE) {
         DynamicJsonDocument json = ioController.handleApiCall(api_split);
+        shouldPostSocketUpdate = true;
         xSemaphoreGive(apiCallSemaphore);
         return json;
     } else {
@@ -120,7 +123,7 @@ void initializeHttpServer(){
         std::string apiTrimmed = std::string(request->url().c_str()).substr(5);
         DynamicJsonDocument api_result = mainHandleApiCall(apiTrimmed, &ret_code);
 
-        ALOGD("API call result:\n{}\n",api_result.as<std::string>());
+        ALOGD("API call result:\n{}\n",api_result.as<String>());
         request->send(ret_code, "application/json", api_result.as<String>());
     });
 
@@ -138,7 +141,9 @@ void initializeHttpServer(){
         }
         client->send(alogGetInitString(), NULL, millis(), 1000);
     });
+
     server.addHandler(&events);
+    shouldPostSocketUpdate = true;
 
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     server.begin();
@@ -223,7 +228,7 @@ void loop()
 
     aOledLogger.redraw();
 
-    delay(500);
+    delay(100);
     counter++;
     if (digitalRead(PIN_BUT4) == LOW){
         ALOGI("Button 4 is pressed - doing test call");
@@ -233,7 +238,13 @@ void loop()
             ).as<std::string>()
         );
     }
-    if (counter%20 == 0){
+    if (shouldPostSocketUpdate){
+        ALOGT("updating state by socket");
+        shouldPostSocketUpdate = false;
+        std::string ret = (ioController.getIoControllerState()).as<std::string>();
+        events.send(ret.c_str(),"state",millis());
+    }
+    if (counter%100 == 0){
         socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
     }
 }

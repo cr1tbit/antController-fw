@@ -150,6 +150,7 @@ typedef struct {
         }
         return ret;
     }
+    std::string currentButtonName = "OFF";
 } buttonGroup_t;
 
 typedef struct {

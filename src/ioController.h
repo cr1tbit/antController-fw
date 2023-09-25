@@ -33,7 +33,7 @@ class IoGroup {
         switch (api_call.size()){
         case 0:
         case 1:
-          jsonRef["returnString"] = "ERR: no parameter";
+          jsonRef["msg"] = "ERR: no parameter";
           jsonRef["retCode"] = 500;
           return false;
         case 2:
@@ -45,7 +45,7 @@ class IoGroup {
           jsonRef["value"] = api_call[2];
           return true;
         default:
-          jsonRef["returnString"] = "ERR: too many parameters";
+          jsonRef["msg"] = "ERR: too many parameters";
           jsonRef["retCode"] = 500;
           return false;
       }
@@ -84,7 +84,7 @@ class IoGroup {
     }
 
     void appendJsonStatus(DynamicJsonDocument& jsonRef, bool isSucc, const char* msg){
-      jsonRef["returnString"] = msg;
+      jsonRef["msg"] = msg;
       jsonRef["retCode"] = isSucc ? 200 : 500;
     }
 
@@ -231,6 +231,7 @@ class O_group : public IoGroup {
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
       currentTagData["status"] = "OK";
       currentTagData["bits"] = get_output_bits();
+      currentTagData["ioNum"] = out_num;
       return;
     }
 
@@ -297,6 +298,7 @@ class I_group: public IoGroup {
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
       currentTagData["status"] = "OK";
       currentTagData["bits"] = get_input_bits();
+      currentTagData["ioNum"] = pins->size();
       return;
     }
 

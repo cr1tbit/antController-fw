@@ -23,9 +23,12 @@ commands = [
 ]
 
 def handleResponse(response):
+    
     try:
+        jsonOnly = response[response.find("{"):response.rfind("}")+1]
+        # print(jsonOnly)
         # try to parse the response as a JSON object
-        jsonResp = json.loads(response[response.find("{"):])
+        jsonResp = json.loads(jsonOnly)
         #pretty-print it
         print (json.dumps(jsonResp, indent=4))
     except ValueError:

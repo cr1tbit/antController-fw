@@ -63,8 +63,10 @@ DynamicJsonDocument IoController::getIoControllerState(){
     }
     buttonHandler.getState(retJson);
 
-    retJson["returnString"] = "OK";
+    retJson["msg"] = "OK";
     retJson["retCode"] = 200;
+    ALOGI("Json bufer {}/{}b", retJson.memoryUsage(), retJson.capacity());
+
     return retJson;
 }
 
@@ -73,7 +75,7 @@ DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_ca
 
     if (api_call[0] == "BUT"){
         std::string ret = buttonHandler.apiAction(api_call)? "OK" : "ERR";
-        retJson["returnString"] = ret;
+        retJson["msg"] = ret;
         return retJson;
     }
     if (api_call[0] == "INF"){
@@ -84,7 +86,7 @@ DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_ca
             return group->apiAction(api_call);
         }
     }
-    retJson["returnString"] = "ERR: API call for tag " + api_call[0] + " not found";
+    retJson["msg"] = "ERR: API call for tag " + api_call[0] + " not found";
     return retJson;
 }
 

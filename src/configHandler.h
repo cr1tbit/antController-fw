@@ -94,7 +94,7 @@ public:
                 ALOGI("No cond rules found", e.what());
             }
             attachInterruptsToCondPins();
-            assignPinsToButtonGroup();
+            // assignPinsToButtonGroup();
             is_valid = true;
             // printConfig();
             return true; 
@@ -113,39 +113,39 @@ public:
         }
     }
 
-    void assignPinsToButtonGroup() {
-        // iterate over groups [a;d]
-        for (auto& b_group : button_groups) {
-            auto& groupName = b_group.first;
-            auto& groupButtons = b_group.second;
+    // void assignPinsToButtonGroup() {
+    //     // iterate over groups [a;d]
+    //     for (auto& b_group : button_groups) {
+    //         auto& groupName = b_group.first;
+    //         auto& groupButtons = b_group.second;
 
-            auto& groupPins = pins_by_group[groupName];
-            // get a list of pointers to pins used in each group
-            for(auto& b : groupButtons.buttons){
-                for(auto& p : b.pinNames){
-                    const pin_t& pin = getPinByName(p, false);
-                    const pin_t* pinPtr = &pin;
-                    // ALOGI("pin {}@{} assigned to group {}", 
-                    //     pin.to_string(), 
-                    //     static_cast<const void*>(pinPtr), 
-                    //     groupName.c_str()
-                    // );
-                    groupPins.push_back(pinPtr);
-                }
-            }
-            // remove repeating pin pointers
-            std::sort(groupPins.begin(), groupPins.end());
-            auto newEnd = std::unique(groupPins.begin(), groupPins.end());
-            groupPins.erase(newEnd, groupPins.end());
+    //         auto& groupPins = pins_by_group[groupName];
+    //         // get a list of pointers to pins used in each group
+    //         for(auto& b : groupButtons.buttons){
+    //             for(auto& p : b.pinNames){
+    //                 const pin_t& pin = getPinByName(p, false);
+    //                 const pin_t* pinPtr = &pin;
+    //                 // ALOGI("pin {}@{} assigned to group {}", 
+    //                 //     pin.to_string(), 
+    //                 //     static_cast<const void*>(pinPtr), 
+    //                 //     groupName.c_str()
+    //                 // );
+    //                 groupPins.push_back(pinPtr);
+    //             }
+    //         }
+    //         // remove repeating pin pointers
+    //         std::sort(groupPins.begin(), groupPins.end());
+    //         auto newEnd = std::unique(groupPins.begin(), groupPins.end());
+    //         groupPins.erase(newEnd, groupPins.end());
             
-            // now print all pointers attached to a group
-            ALOGI("{} pins for group {}:",groupPins.size(), groupName.c_str());
-            // ALOGI("{}", groupPins.at(0)->to_string());
-            for (auto p : groupPins){
-                ALOGI("{}", p->to_string());
-            }
-        }
-    }
+    //         // now print all pointers attached to a group
+    //         ALOGI("{} pins for group {}:",groupPins.size(), groupName.c_str());
+    //         // ALOGI("{}", groupPins.at(0)->to_string());
+    //         for (auto p : groupPins){
+    //             ALOGI("{}", p->to_string());
+    //         }
+    //     }
+    // }
 
     const pin_t& getPinByName(const std::string& name, bool assertDuplicates = false){
         std::vector<pin_t> found_pins;
@@ -192,7 +192,7 @@ public:
     bool is_valid = false;
 
     std::map<std::string, buttonGroup_t> button_groups;
-    std::map<std::string, std::vector<const pin_t*>> pins_by_group;
+    // std::map<std::string, std::vector<const pin_t*>> pins_by_group;
     std::vector<pin_t> pins;
     std::vector<condRule_t> rules;
 };
