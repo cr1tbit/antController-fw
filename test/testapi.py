@@ -1,6 +1,7 @@
 import serial
 from time import sleep
 import sys
+import json
 
 # configure the serial connection
 ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.2)
@@ -17,8 +18,19 @@ commands = [
     "DUPA/bits/0",
     "INP/",
     "INP/bits",
-    "INP/bits/1"
+    "INP/bits/1",
+    "INF"
 ]
+
+def handleResponse(response):
+    try:
+        # try to parse the response as a JSON object
+        jsonResp = json.loads(response[response.find("{"):])
+        #pretty-print it
+        print (json.dumps(jsonResp, indent=4))
+    except ValueError:
+        print ("cannot parse response as JSON object:")
+        print (response)
 
 
 # clear the RX buffer
@@ -38,7 +50,8 @@ for command in commands:
         if not data:
             break
         response += data + '\n'
-    print(response)
+    print("Command: " + command)
+    handleResponse(response)
 
 # close the serial connection
 ser.close()

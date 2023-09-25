@@ -1,11 +1,12 @@
 #ifndef IO_CONTROLLER_H
 #define IO_CONTROLLER_H
 
+#include <vector>
+
 #include <Arduino.h>
 #undef B1
 #include <Wire.h>
-
-#include <vector>
+#include "ArduinoJson.h"
 
 #include "ioControllerTypes.h"
 #include "configHandler.h"
@@ -27,40 +28,46 @@ class IoGroup {
     }
 
   public:
-    std::string apiAction(std::vector<std::string>& api_call){
-      ALOGI("API call for tag {}",
-        tag.c_str(), api_call.size());
-      
-      std::string parameter, value;
 
-      switch (api_call.size()){
+    bool tryParseApiArguments(std::vector<std::string>& api_call, DynamicJsonDocument& jsonRef){
+        switch (api_call.size()){
         case 0:
         case 1:
-          return "ERR: no parameter";
+          jsonRef["returnString"] = "ERR: no parameter";
+          jsonRef["retCode"] = 500;
+          return false;
         case 2:
-          parameter = api_call[1];
-          value = "";
-          ALOGI("Parameter: {}, no value",
-            parameter.c_str()
-          );
-          break;
+          jsonRef["parameter"] = api_call[1];
+          jsonRef["value"] = "";
+          return true;
         case 3:
-          parameter = api_call[1];
-          value = api_call[2];
-          ALOGI("Parameter: {}, Value: {}",
-            parameter.c_str(),
-            value.c_str()
-          );
-          break;
+          jsonRef["parameter"] = api_call[1];
+          jsonRef["value"] = api_call[2];
+          return true;
         default:
-          return "ERR: too many parameters";
+          jsonRef["returnString"] = "ERR: too many parameters";
+          jsonRef["retCode"] = 500;
+          return false;
       }
-      
-      return ioOperation(parameter, value);
     }
 
-    std::string getState(){
-      return ioOperation("bits", "");
+    DynamicJsonDocument apiAction(std::vector<std::string>& api_call){
+      ALOGI("API call for tag {}",
+        tag.c_str(), api_call.size());
+
+      DynamicJsonDocument retJson(1024);
+
+      if (!tryParseApiArguments(api_call, retJson)){
+        //append args for debugging
+        JsonArray args = retJson.createNestedArray("args");
+        for (int i = 0; i<api_call.size(); i++){
+            args[i] = api_call[i];
+        }
+        return retJson;
+      } else {
+        ioOperation(retJson);
+        return retJson;
+      }
     }
 
     int intFromString(std::string& str){
@@ -76,12 +83,18 @@ class IoGroup {
       return std::stoi(str);
     }
 
+    void appendJsonStatus(DynamicJsonDocument& jsonRef, bool isSucc, const char* msg){
+      jsonRef["returnString"] = msg;
+      jsonRef["retCode"] = isSucc ? 200 : 500;
+    }
+
     antControllerIoType_t ioType;
     std::string tag;
     virtual void resetOutputs() = 0;
+    virtual void getState(DynamicJsonDocument& jsonRef) = 0;
 
   private:
-    virtual std::string ioOperation(std::string parameter, std::string value) = 0;
+    virtual void ioOperation(DynamicJsonDocument& jsonRef) = 0;
 };
 
 class O_group : public IoGroup {
@@ -123,9 +136,9 @@ class O_group : public IoGroup {
         ALOGE("Cannot write bits {:#04x} as it exceeds {:#04x} on {}",
           bits, bit_range, tag.c_str());
         return false;
-      }   
+      }
       ALOGI("Write bits {:#04x} on {}",bits, tag.c_str());
-      bits &= (0xFFFF >> 16-out_num);      
+      bits &= (0xFFFF >> 16-out_num);
       bits <<= out_offs;
       bits |= expander->read() & ~(0xFFFF >> 16-out_num << out_offs);
       expander->write(bits);
@@ -139,38 +152,91 @@ class O_group : public IoGroup {
       return bits;
     }
 
-    std::string ioOperation(std::string parameter, std::string value){
-      bool is_succ = false;
+    void pinOperation();
 
+    void bitsOperation();
+
+    int tryGetPinByParameter(std::string& parameter){
       int parameter_int_offs = intFromString(parameter);
       if (parameter_int_offs > 0){
+        parameter_int_offs -= 1; // API pin parameters start from 1
+        if (parameter_int_offs >= out_num){
+          return -1;
+        }
+        return parameter_int_offs;
+      } else {
+        //get from pin name
+        return -1;
+      }
+    }
+
+    bool isPinHigh(int pin_num){
+      return expander->read(
+        (PCA95x5::Port::Port) (pin_num + out_offs)
+      );
+    }
+
+    bool tryWritePinByParam(int pinOffs, std::string& parameter){
+      if (parameter.find("on") != std::string::npos) {
+        return set_output(pinOffs, true);
+      } else if (parameter.find("off") != std::string::npos) {
+        return set_output(pinOffs, false);
+      } else {
+        return false;
+      }
+    }
+
+    void ioOperation(DynamicJsonDocument& jsonRef){
+      std::string parameter = jsonRef["parameter"].as<std::string>();
+      std::string value = jsonRef["value"].as<std::string>();
+
+      //try to find a pin based on integer or pin name
+      int expPinByParam = tryGetPinByParameter(parameter);
+      if (expPinByParam >= 0){
         //handle calls for specific pin
-        parameter_int_offs -= 1; // we want pin numbering from 1
-        if (value.length() == 0){
-          return "OK: " + std::to_string(
-            expander->read(
-              (PCA95x5::Port::Port) parameter_int_offs));
-        } else if (value.find("on") != std::string::npos) {
-          is_succ = set_output(parameter_int_offs, true);
-        } else if (value.find("off") != std::string::npos) {
-          is_succ = set_output(parameter_int_offs, false);
+        if (!value.empty()){
+          bool isHigh = isPinHigh(expPinByParam);
+          jsonRef["pinState"] = isHigh ? "on" : "off";
+          jsonRef["pinNum"] = expPinByParam + 1;
+          appendJsonStatus(jsonRef, true, "Read ok");
+          return;
         } else {
-          return "ERR: invalid value";
-        } 
+          bool is_succ = tryWritePinByParam(expPinByParam, value);
+          if (is_succ){
+            appendJsonStatus(jsonRef, true, "Write ok");
+            return;
+          } else {
+            appendJsonStatus(jsonRef, false, "Write failed");
+            return;
+          }
+        }        
       } else if (parameter == "bits"){
         if (value.length() == 0){
-          return "OK: " + std::to_string(get_output_bits());
+          //read pins
+          appendJsonStatus(jsonRef, true, "Read ok");
+          jsonRef["bits"] = get_output_bits();
+          return;
         }
         int bits = intFromString(value);
         if ((bits < 0)||(bits > 0xFFFF)){
-          return "ERR: invalid bits value";
+          appendJsonStatus(jsonRef, false, "ERR: invalid bits");
+          return;
+        } else {
+          set_output_bits((uint16_t)bits);
+          appendJsonStatus(jsonRef, true, "Write ok");
+          return;
         }
-        is_succ = set_output_bits((uint16_t)bits);
       } else {
-        return "ERR: invalid parameter";
+        appendJsonStatus(jsonRef, false, "ERR: invalid parameter");
+        return;
       }
+    }
 
-      return is_succ ? "OK" : "ERR";
+    void getState(DynamicJsonDocument& jsonRef){
+      JsonObject currentTagData = jsonRef.createNestedObject(tag);
+      currentTagData["status"] = "OK";
+      currentTagData["bits"] = get_output_bits();
+      return;
     }
 
     void resetOutputs() override{
@@ -180,14 +246,14 @@ class O_group : public IoGroup {
   private:
     PCA9555* expander;
     int out_num;
-    int out_offs;  
+    int out_offs;
 };
 
 class I_group: public IoGroup {
   public:
     I_group(
-        antControllerIoType_t ioType, 
-        int pin_in_buff_ena, 
+        antControllerIoType_t ioType,
+        int pin_in_buff_ena,
         const std::vector<uint8_t> *pins )
     : IoGroup(ioType){
         this->pin_in_buff_ena = pin_in_buff_ena;
@@ -196,41 +262,48 @@ class I_group: public IoGroup {
     }
 
     retCode_t enable(){
-        for (int iInput: *pins){  
+        for (int iInput: *pins){
             pinMode(iInput, INPUT_PULLDOWN);
             attachInterrupt(iInput, input_pins_isr, CHANGE);
         }
 
         pinMode(pin_in_buff_ena,OUTPUT);
         digitalWrite(pin_in_buff_ena,0);
-        return RET_OK;  
+        return RET_OK;
     }
 
-    std::string ioOperation(std::string parameter, std::string value){
-        if (parameter == "bits"){
-            uint16_t bits;
-            get_input_bits(&bits);
-            return std::to_string(bits);
-        } else {
-            return "ERR: only bitwise read supported";
+    uint16_t get_input_bits(){
+      uint16_t res = 0x00;
+      for (int iInput = 0; iInput < pins->size(); iInput++){
+        uint8_t pin_to_read = (*pins)[iInput];
+        if (digitalRead(pin_to_read) == true){
+        res |= (uint16_t)0x01<<iInput;
         }
-    }
-
-    bool get_input_bits(uint16_t* res){
-        *res = 0;
-
-        for (int iInput = 0; iInput < pins->size(); iInput++){
-            uint8_t pin_to_read = (*pins)[iInput];
-            // Serial.printf("read %d!\n\r",pin_to_read);
-            if (digitalRead(pin_to_read) == true){
-            // Serial.printf("%d ishigh !\n\r",pin_to_read);
-            *res |= (uint16_t)0x01<<iInput;
-            }
-        }
-        return true;
+      }
+      return res;
     }
 
     void resetOutputs(){};
+
+    void ioOperation(DynamicJsonDocument& jsonRef){
+      std::string parameter = jsonRef["parameter"].as<std::string>();
+      std::string value = jsonRef["value"].as<std::string>();
+      if (parameter == "bits"){
+        appendJsonStatus(jsonRef, true, "Read ok");
+        jsonRef["bits"] = get_input_bits();
+        return;
+      } else {
+        appendJsonStatus(jsonRef, false, "ERR: invalid parameter");
+        return;
+      }
+    }
+
+    void getState(DynamicJsonDocument& jsonRef){
+      JsonObject currentTagData = jsonRef.createNestedObject(tag);
+      currentTagData["status"] = "OK";
+      currentTagData["bits"] = get_input_bits();
+      return;
+    }
 
 private:
     int pin_in_buff_ena;
@@ -248,9 +321,9 @@ public:
       _wire = &wire;
       init_controller_objects();
     }
-    std::string handleApiCall(std::vector<std::string>& api_call);
+    DynamicJsonDocument handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
-    std::string getIoState(std::vector<std::string>& api_call);
+    DynamicJsonDocument getIoState();
 
 private:
     TwoWire* _wire;
@@ -259,8 +332,8 @@ private:
     std::vector<IoGroup*> ioGroups;
     ButtonHandler buttonHandler;
 
-    retCode_t init_controller_objects();    
-    retCode_t init_expander(PCA9555* p_exp, int addr);  
+    retCode_t init_controller_objects();
+    retCode_t init_expander(PCA9555* p_exp, int addr);
 };
 
 #endif // IO_CONTROLLER_H

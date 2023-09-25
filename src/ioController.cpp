@@ -47,38 +47,44 @@ retCode_t IoController::init_expander(PCA9555* p_exp, int addr){
     ALOGT("init exp {:#02x}", addr);
 
     if (write_status){
-    ALOGT("Expander OK!");
-    return RET_OK;
+        ALOGT("Expander OK!");
+        return RET_OK;
     }
     ALOGE("Expander {:#02x} Error! Check the connections", addr);
     return RET_ERR;
 }
 
 
-std::string IoController::getIoState(std::vector<std::string>& api_call){
-    std::string ret = "";
+DynamicJsonDocument IoController::getIoState(){
+    DynamicJsonDocument retJson(1024);
 
     for (auto& g: ioGroups){
-        ret += fmt::format("{}: {}\n\r",g->tag, g->getState());        
+        g->getState(retJson);        
     }
-    return ret;
+
+    retJson["returnString"] = "OK";
+    retJson["retCode"] = 200;
+    return retJson;
 }
 
-std::string IoController::handleApiCall(std::vector<std::string>& api_call){
+DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_call){
+    DynamicJsonDocument retJson(1024);
 
     if (api_call[0] == "BUT"){
-        return buttonHandler.apiAction(api_call)? "OK" : "ERR";
+        std::string ret = buttonHandler.apiAction(api_call)? "OK" : "ERR";
+        retJson["returnString"] = ret;
+        return retJson;
     }
     if (api_call[0] == "INF"){
-        return getIoState(api_call);
+        return getIoState();
     }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){
             return group->apiAction(api_call);
         }
     }
-    std::string result = "ERR: API call for tag " + api_call[0] + " not found";
-    return result;
+    retJson["returnString"] = "ERR: API call for tag " + api_call[0] + " not found";
+    return retJson;
 }
 
 void IoController::setOutput(antControllerIoType_t ioType, int pin_num, bool val){

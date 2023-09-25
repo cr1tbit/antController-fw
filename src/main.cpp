@@ -9,6 +9,7 @@
 #include "LittleFS.h"
 #include <SPIFFSEditor.h>
 #include <WiFiSettings.h>
+#include "ArduinoJson.h"
 
 #include "commonFwUtils.h"
 #include "alfalog.h"
@@ -46,7 +47,18 @@ std::vector<std::string> splitString(const std::string& str, char delimiter) {
 
 SemaphoreHandle_t apiCallSemaphore;
 
-std::string mainHandleApiCall(const std::string &subpath, int* ret_code){
+DynamicJsonDocument getErrorJson(const std::string& msg){
+    DynamicJsonDocument json(1024);
+    json["msg"] = msg;
+    json["retCode"] = 500;
+    return json;
+}
+/* JSON schema:
+ * {
+    msg: string
+    retCode: int
+ */
+DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code){
     ALOGD("Analyzing subpath: {}", subpath.c_str());
     //schema is <CMD>/<INDEX>/<VALUE>
     *ret_code = 200;
@@ -54,20 +66,20 @@ std::string mainHandleApiCall(const std::string &subpath, int* ret_code){
     auto api_split = splitString(subpath, '/');
 
     if (api_split.size() == 0){
-        return "invnalid API call: " + subpath;
+        return getErrorJson("invnalid API call: " + subpath);
     }
 
     if( apiCallSemaphore == NULL ) {
         *ret_code = 500;
-        return std::string("API call mutex does not exist.");
+        return getErrorJson("API call mutex does not exist.");
     }
     if( xSemaphoreTake(apiCallSemaphore, (TickType_t)100) == pdTRUE) {
-        std::string ret = ioController.handleApiCall(api_split);
+        DynamicJsonDocument json = ioController.handleApiCall(api_split);
         xSemaphoreGive(apiCallSemaphore);
-        return ret;
+        return json;
     } else {
         *ret_code = 500;
-        return std::string("Timeout waiting for API call mutex.");
+        return getErrorJson("Timeout waiting for API call mutex.");
     }
 }
 
@@ -106,10 +118,10 @@ void initializeHttpServer(){
         int ret_code = 418;
 
         std::string apiTrimmed = std::string(request->url().c_str()).substr(5);
-        std::string api_result = mainHandleApiCall(apiTrimmed, &ret_code);
+        DynamicJsonDocument api_result = mainHandleApiCall(apiTrimmed, &ret_code);
 
-        ALOGD("API call result:\n{}\n",api_result.c_str());
-        request->send(ret_code, "text/plain", api_result.c_str());
+        ALOGD("API call result:\n{}\n",api_result.as<std::string>());
+        request->send(ret_code, "application/json", api_result.as<String>());
     });
 
     server.addHandler(new SPIFFSEditor(LittleFS, "test","test"));
@@ -218,7 +230,7 @@ void loop()
         ALOGI("Test call result: {0}",
             mainHandleApiCall(
                 "REL/bits/"+std::to_string(counter++), &ret_code
-            ).c_str()
+            ).as<std::string>()
         );
     }
     if (counter%20 == 0){
@@ -271,7 +283,7 @@ void SerialTerminalTask(void *parameter)
                 ALOGV("Op result: {}",
                     mainHandleApiCall(
                         cmd, &ret_code)
-                        .c_str());
+                        .as<std::string>());
                 buf.clear();
                 break;
             }
