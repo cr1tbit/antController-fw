@@ -152,10 +152,6 @@ class O_group : public IoGroup {
       return bits;
     }
 
-    void pinOperation();
-
-    void bitsOperation();
-
     int tryGetPinByParameter(std::string& parameter){
       int parameter_int_offs = intFromString(parameter);
       if (parameter_int_offs > 0){
@@ -165,7 +161,6 @@ class O_group : public IoGroup {
         }
         return parameter_int_offs;
       } else {
-        //get from pin name
         return -1;
       }
     }
@@ -323,7 +318,7 @@ public:
     }
     DynamicJsonDocument handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
-    DynamicJsonDocument getIoState();
+    DynamicJsonDocument getIoControllerState();
 
 private:
     TwoWire* _wire;

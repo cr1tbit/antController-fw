@@ -6,6 +6,12 @@
 
 #include "ioController.h"
 
+void ButtonHandler::getState(DynamicJsonDocument& jsonRef){
+    JsonObject buttonHandlerData = jsonRef.createNestedObject("buttonHandler");
+    buttonHandlerData["status"] = "OK";
+    return;
+}
+
 void ButtonHandler::resetOutputsForButtonGroup(const std::string& bGroup){
     for (auto pin: Config.pins_by_group[bGroup]){
         dad->setOutput(pin->ioType, pin->ioNum, false);

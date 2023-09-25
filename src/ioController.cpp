@@ -55,12 +55,13 @@ retCode_t IoController::init_expander(PCA9555* p_exp, int addr){
 }
 
 
-DynamicJsonDocument IoController::getIoState(){
+DynamicJsonDocument IoController::getIoControllerState(){
     DynamicJsonDocument retJson(1024);
 
     for (auto& g: ioGroups){
         g->getState(retJson);        
     }
+    buttonHandler.getState(retJson);
 
     retJson["returnString"] = "OK";
     retJson["retCode"] = 200;
@@ -76,7 +77,7 @@ DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_ca
         return retJson;
     }
     if (api_call[0] == "INF"){
-        return getIoState();
+        return getIoControllerState();
     }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){

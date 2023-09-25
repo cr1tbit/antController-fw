@@ -96,7 +96,7 @@ public:
             attachInterruptsToCondPins();
             assignPinsToButtonGroup();
             is_valid = true;
-            printConfig();
+            // printConfig();
             return true; 
         } catch (std::exception& e){
             ALOGE("Error parsing toml");
@@ -176,16 +176,16 @@ public:
         if (!is_valid){
             ALOGE("Invalid config!");
         }
-        ALOGI("button map:")
+        ALOGR("== button map ==")
         for (auto& b_group : button_groups) {
-            ALOGI(b_group.first)
+            ALOGR("group {}:", b_group.first)
             for(auto& b : b_group.second.buttons){
-                ALOGI(b.to_string())
+                ALOGR("\t{}", b.to_string())
             }
         }
-        ALOGI("pins:")
+        ALOGR("== pins ==")
         for(auto& p : pins){
-            ALOGI(p.to_string())
+            ALOGR("\t{}", p.to_string())
         }
     }
 
