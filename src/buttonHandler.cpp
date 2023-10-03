@@ -7,12 +7,12 @@
 #include "ioController.h"
 
 void ButtonHandler::getState(DynamicJsonDocument& jsonRef){
-    JsonObject buttonHandlerData = jsonRef.createNestedObject("BUT");
-    buttonHandlerData["status"] = "OK";
+    JsonObject buttonHandlerData = jsonRef.createNestedObject("buttons");
+    // buttonHandlerData["status"] = "OK";
     JsonObject buttonJson = buttonHandlerData.createNestedObject("groups");
 
     for(auto& bGroup: Config.button_groups){
-        buttonJson[bGroup.first] = bGroup.second.currentButtonName;        
+        buttonJson[bGroup.first] = bGroup.second.currentButtonName;
     }
     return;
 }

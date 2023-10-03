@@ -7,7 +7,7 @@ secrets.h
 *.out
 result.json
 
-merged-flash.bin
+*.bin
 
 data/wifi-*
 data/static

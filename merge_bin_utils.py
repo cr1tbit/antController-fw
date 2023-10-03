@@ -1,9 +1,9 @@
 Import("env")
 
-def getMergeBinCommand():
+def getMergeBinCommand(outName: str):
     command = "\
     esptool.py --chip ESP32 merge_bin\
-        -o merged-flash.bin --flash_size=keep"
+        -o " + outName + " --flash_size=keep"
     
     for addr,path in env["FLASH_EXTRA_IMAGES"]:
         command += " {} {} ".format(addr, path)
@@ -13,16 +13,29 @@ def getMergeBinCommand():
     return command    
 
 env.AddCustomTarget(
-    name="mergebin",
+    name="softimage",
+    dependencies=[
+        "$BUILD_DIR/firmware.bin"
+    ],
+    actions=[
+        "cp -f $BUILD_DIR/firmware.bin firmware.bin"
+    ],
+    title="Get binary (helper for CI)",
+    description=""
+)
+
+env.AddCustomTarget(
+    name="fullimage",
     dependencies=[
         "$BUILD_DIR/partitions.bin",
+        "$BUILD_DIR/littlefs.bin",
         "$BUILD_DIR/bootloader.bin",
         "$BUILD_DIR/firmware.bin"
     ],
     actions=[
-        getMergeBinCommand()
+        getMergeBinCommand("fullimage.bin")
     ],
-    title="Get merged binary",
+    title="Get binary with filesystem",
     description=""
 )
 

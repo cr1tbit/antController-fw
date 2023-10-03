@@ -9,8 +9,8 @@ void IRAM_ATTR input_pins_isr() {
 }
 
 bool isOutputType(antControllerIoType_t ioType){
-  return ioType == MOSFET || 
-         ioType == RELAY || 
+  return ioType == MOSFET ||
+         ioType == RELAY ||
          ioType == OPTO ||
          ioType == TTL;
 }
@@ -31,7 +31,7 @@ retCode_t IoController::init_controller_objects(){
         e.write(PCA95x5::Level::L_ALL);
     }
     for (auto bGroup: Config.button_groups){
-        buttonHandler.resetOutputsForButtonGroup(bGroup.first);  
+        buttonHandler.resetOutputsForButtonGroup(bGroup.first);
     }
 
     return RET_OK;
@@ -57,9 +57,10 @@ retCode_t IoController::init_expander(PCA9555* p_exp, int addr){
 
 DynamicJsonDocument IoController::getIoControllerState(){
     DynamicJsonDocument retJson(1024);
+    JsonObject ioArray = retJson.createNestedObject("io");
 
     for (auto& g: ioGroups){
-        g->getState(retJson);        
+        g->getState(ioArray);
     }
     buttonHandler.getState(retJson);
 

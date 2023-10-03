@@ -91,7 +91,7 @@ class IoGroup {
     antControllerIoType_t ioType;
     std::string tag;
     virtual void resetOutputs() = 0;
-    virtual void getState(DynamicJsonDocument& jsonRef) = 0;
+    virtual void getState(JsonObject& jsonRef) = 0;
 
   private:
     virtual void ioOperation(DynamicJsonDocument& jsonRef) = 0;
@@ -227,9 +227,9 @@ class O_group : public IoGroup {
       }
     }
 
-    void getState(DynamicJsonDocument& jsonRef){
+    void getState(JsonObject& jsonRef){
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
-      currentTagData["status"] = "OK";
+      currentTagData["type"] = "input";
       currentTagData["bits"] = get_output_bits();
       currentTagData["ioNum"] = out_num;
       return;
@@ -294,9 +294,9 @@ class I_group: public IoGroup {
       }
     }
 
-    void getState(DynamicJsonDocument& jsonRef){
+    void getState(JsonObject& jsonRef){
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
-      currentTagData["status"] = "OK";
+      currentTagData["type"] = "input";
       currentTagData["bits"] = get_input_bits();
       currentTagData["ioNum"] = pins->size();
       return;
