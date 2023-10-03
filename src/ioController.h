@@ -204,7 +204,7 @@ class O_group : public IoGroup {
             appendJsonStatus(jsonRef, false, "Write failed");
             return;
           }
-        }        
+        }
       } else if (parameter == "bits"){
         if (value.length() == 0){
           //read pins

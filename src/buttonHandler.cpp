@@ -28,7 +28,7 @@ void ButtonHandler::resetOutputsForButtonGroup(const std::string& bGroup){
         }
     }
     Config.button_groups[bGroup].currentButtonName = "OFF";
-} 
+}
 
 bool ButtonHandler::activate_button(const std::string& bGroupName, button_t button){
     ALOGI("activate button {} in group {}", button.name, bGroupName);

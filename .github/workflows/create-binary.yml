@@ -34,7 +34,7 @@ jobs:
         run: pio run -e antcontroller -t fullimage
 
       - name: Export built firmware
-        run: pio run -e antcontroller -t fullimage
+        run: pio run -e antcontroller -t fwimage
 
       - name: Export full binary image
         uses: actions/upload-artifact@v3

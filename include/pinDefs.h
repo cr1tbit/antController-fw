@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 const int PIN_I2C_SCL = 4;
 const int PIN_I2C_SDA = 5;

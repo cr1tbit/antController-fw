@@ -58,7 +58,7 @@ public:
     int ioNum;
 
     std::string to_string() const{
-        return fmt::format("{}: {}[{}] ({})", 
+        return fmt::format("{}: {}[{}] ({})",
             name, ioTypeMap.at(ioType), ioNum, sch);
     }
 
@@ -105,7 +105,7 @@ public:
         }
 
         ioNum = numFromName(antctrl);
-            
+
         if (ioNum < 0){
             const std::string err = fmt::format(
                 "could not parse pin number from: {}", antctrl);

@@ -39,7 +39,7 @@ public:
             istr.seekg(0, std::ios::beg);
 
             return parseToml(istr, name);
-        }  
+        }
     }
     #endif
 
@@ -50,7 +50,7 @@ public:
 
             ALOGI(title);
 
-            const auto values = toml::find(data, "pin");        
+            const auto values = toml::find(data, "pin");
             for(const auto& v : values.as_array()) {
                 pin_t pin (
                     toml::find<std::string>(v,"name"),
@@ -97,7 +97,7 @@ public:
             // assignPinsToButtonGroup();
             is_valid = true;
             // printConfig();
-            return true; 
+            return true;
         } catch (std::exception& e){
             ALOGE("Error parsing toml");
             ALOGE(e.what());
@@ -108,7 +108,7 @@ public:
     void attachInterruptsToCondPins(){
         for (auto& rule : rules){
             if (rule.input->ioType == INP){
-                
+
             }
         }
     }
@@ -125,9 +125,9 @@ public:
     //             for(auto& p : b.pinNames){
     //                 const pin_t& pin = getPinByName(p, false);
     //                 const pin_t* pinPtr = &pin;
-    //                 // ALOGI("pin {}@{} assigned to group {}", 
-    //                 //     pin.to_string(), 
-    //                 //     static_cast<const void*>(pinPtr), 
+    //                 // ALOGI("pin {}@{} assigned to group {}",
+    //                 //     pin.to_string(),
+    //                 //     static_cast<const void*>(pinPtr),
     //                 //     groupName.c_str()
     //                 // );
     //                 groupPins.push_back(pinPtr);
@@ -137,7 +137,7 @@ public:
     //         std::sort(groupPins.begin(), groupPins.end());
     //         auto newEnd = std::unique(groupPins.begin(), groupPins.end());
     //         groupPins.erase(newEnd, groupPins.end());
-            
+
     //         // now print all pointers attached to a group
     //         ALOGI("{} pins for group {}:",groupPins.size(), groupName.c_str());
     //         // ALOGI("{}", groupPins.at(0)->to_string());
@@ -199,7 +199,7 @@ public:
 
 extern Config_ &Config;
 
-// once we move to espidf this will work. 
+// once we move to espidf this will work.
 // void getStackUsed(){
 //     TaskHandle_t xHandle;
 //     TaskStatus_t xTaskDetails;

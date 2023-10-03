@@ -137,7 +137,7 @@ void initializeHttpServer(){
 
     events.onConnect([](AsyncEventSourceClient *client){
         if(client->lastId()){
-                ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
+            ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
         }
         client->send(alogGetInitString(), NULL, millis(), 1000);
     });
@@ -189,7 +189,7 @@ void setup(){
     AlfaLogger.addBackend(&aOledLogger);
     AlfaLogger.addBackend(&serialLogger);
     AlfaLogger.addBackend(&socketLogger);
-    
+
     AlfaLogger.begin();
     ALOGD("logger started");
     ALOG_I2CLS(i2c);
@@ -209,9 +209,9 @@ void setup(){
     xTaskCreate( SerialTerminalTask, "serial task",
                 10000, NULL, 2, NULL );
 
-    WiFiSettings.onWaitLoop = []() { 
-        ALOGI("Connecting WiFi..."); 
-        return 3000; 
+    WiFiSettings.onWaitLoop = []() {
+        ALOGI("Connecting WiFi...");
+        return 3000;
     };
     WiFiSettings.connect();//will require board reboot after setup
     ALOGI("IP: {}",WiFi.localIP());

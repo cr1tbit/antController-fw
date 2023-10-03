@@ -13,7 +13,7 @@ def getMergeBinCommand(outName: str):
     return command    
 
 env.AddCustomTarget(
-    name="softimage",
+    name="fwimage",
     dependencies=[
         "$BUILD_DIR/firmware.bin"
     ],
