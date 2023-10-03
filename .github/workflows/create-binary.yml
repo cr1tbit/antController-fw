@@ -30,11 +30,20 @@ jobs:
       - name: Generate littlefs image
         run: pio run -e antcontroller -t buildfs
     
-      - name: Build the project and generate whole binary image
-        run: pio run -e antcontroller -t mergebin
+      - name: Build the project and generate full image
+        run: pio run -e antcontroller -t fullimage
 
-      - name: Export compiled binary
+      - name: Export built firmware
+        run: pio run -e antcontroller -t fullimage
+
+      - name: Export full binary image
+        uses: actions/upload-artifact@v3
+        with:
+          name: fullimage.bin
+          path: fullimage.bin
+
+      - name: Export firmware binary
         uses: actions/upload-artifact@v3
         with:
           name: firmware.bin
-          path: merged-flash.bin
+          path: firmware.bin
