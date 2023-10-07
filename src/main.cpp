@@ -211,7 +211,7 @@ void setup(){
 
     WiFiSettings.onWaitLoop = []() {
         ALOGI("Connecting WiFi...");
-        return 3000;
+        return 3000; 
     };
     WiFiSettings.connect();//will require board reboot after setup
     ALOGI("IP: {}",WiFi.localIP());

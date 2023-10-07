@@ -16,11 +16,15 @@ env.AddCustomTarget(
     name="fwimage",
     dependencies=[
         "$BUILD_DIR/firmware.bin"
+        "$BUILD_DIR/partitions.bin",
+        "$BUILD_DIR/bootloader.bin"
     ],
     actions=[
         "cp -f $BUILD_DIR/firmware.bin firmware.bin"
+        "cp -f $BUILD_DIR/partitions.bin partitions.bin"
+        "cp -f $BUILD_DIR/bootloader.bin bootloader.bin"
     ],
-    title="Get binary (helper for CI)",
+    title="Get binaries separatelly (helper for CI)",
     description=""
 )
 
