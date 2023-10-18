@@ -130,7 +130,15 @@ void initializeHttpServer(){
     server.addHandler(new SPIFFSEditor(LittleFS, "test","test"));
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(LittleFS, "/static/index.html", "text/html", false);
+        if (LittleFS.exists("/static/index.html")){
+            request->send(LittleFS, "/static/index.html", "text/html", false);
+        } else {
+            request->send(404, "text/plain",
+                "Site not found. "
+                "The filesystem might've been created incorrectly. " 
+                "See boot logs (via UART) for more information."
+            );
+        }        
     });
 
     server.serveStatic("/", LittleFS, "/static/");

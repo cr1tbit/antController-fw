@@ -1,4 +1,12 @@
 Import("env")
+import os
+
+frontend_addr = env.GetProjectOption("frontend_addr")
+
+try:
+    token = os.environ["GITHUB_TOKEN"]
+except:
+    token = ""
 
 def getMergeBinCommand(outName: str):
     command = "\
@@ -13,15 +21,31 @@ def getMergeBinCommand(outName: str):
     return command    
 
 env.AddCustomTarget(
+    name="fetchfrontend",
+    dependencies=[],
+    actions=[
+        "curl -L "        
+            "-H \"Accept: application/vnd.github+json\" "
+            "-H \"Authorization: Bearer " + token + "\" "
+            "-H \"X-GitHub-Api-Version: 2022-11-28\" " + frontend_addr +
+            " --output /tmp/front.zip",
+        "unzip -f /tmp/front.zip -d /tmp/front",
+        "tar -xzf /tmp/front/*.tar.gz -C /tmp/front",
+        "rm -rf data/static/static",
+        "mv -f /tmp/front/build/* data/static/.",
+    ],
+)
+
+env.AddCustomTarget(
     name="fwimage",
     dependencies=[
-        "$BUILD_DIR/firmware.bin"
+        "$BUILD_DIR/firmware.bin",
         "$BUILD_DIR/partitions.bin",
         "$BUILD_DIR/bootloader.bin"
     ],
     actions=[
-        "cp -f $BUILD_DIR/firmware.bin firmware.bin"
-        "cp -f $BUILD_DIR/partitions.bin partitions.bin"
+        "cp -f $BUILD_DIR/firmware.bin firmware.bin",
+        "cp -f $BUILD_DIR/partitions.bin partitions.bin",
         "cp -f $BUILD_DIR/bootloader.bin bootloader.bin"
     ],
     title="Get binaries separatelly (helper for CI)",

@@ -27,6 +27,11 @@ jobs:
       - name: generate mock secrets header
         run: cp include/secrets.h.example include/secrets.h
 
+      - name: Fetch frontend
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pio run -e antcontroller -t fetchfrontend
+        
       - name: Generate littlefs image
         run: pio run -e antcontroller -t buildfs
     
