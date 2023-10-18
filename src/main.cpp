@@ -58,7 +58,7 @@ DynamicJsonDocument getErrorJson(const std::string& msg){
 /* JSON schema:
  * {
     msg: string
-    retCode: int
+    retCode: int 
  */
 DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code){
     ALOGD("Analyzing subpath: {}", subpath.c_str());
