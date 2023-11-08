@@ -189,26 +189,26 @@ class O_group : public IoGroup {
       int expPinByParam = tryGetPinByParameter(parameter);
       if (expPinByParam >= 0){
         //handle calls for specific pin
-        if (!value.empty()){
+        if (value.empty()){
           bool isHigh = isPinHigh(expPinByParam);
           jsonRef["pinState"] = isHigh ? "on" : "off";
           jsonRef["pinNum"] = expPinByParam + 1;
-          appendJsonStatus(jsonRef, true, "Read ok");
+          appendJsonStatus(jsonRef, true, "Read pin ok");
           return;
         } else {
           bool is_succ = tryWritePinByParam(expPinByParam, value);
           if (is_succ){
-            appendJsonStatus(jsonRef, true, "Write ok");
+            appendJsonStatus(jsonRef, true, "Write pin ok");
             return;
           } else {
-            appendJsonStatus(jsonRef, false, "Write failed");
+            appendJsonStatus(jsonRef, false, "Write pin failed");
             return;
           }
         }
       } else if (parameter == "bits"){
         if (value.length() == 0){
           //read pins
-          appendJsonStatus(jsonRef, true, "Read ok");
+          appendJsonStatus(jsonRef, true, "Read bits ok");
           jsonRef["bits"] = get_output_bits();
           return;
         }
@@ -218,7 +218,7 @@ class O_group : public IoGroup {
           return;
         } else {
           set_output_bits((uint16_t)bits);
-          appendJsonStatus(jsonRef, true, "Write ok");
+          appendJsonStatus(jsonRef, true, "Write bits ok");
           return;
         }
       } else {

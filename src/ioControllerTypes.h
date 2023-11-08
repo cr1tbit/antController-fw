@@ -111,6 +111,7 @@ public:
                 "could not parse pin number from: {}", antctrl);
             throw std::runtime_error(err);
         }
+        ioNum -= 1; //translate schematic numbers to code numbers
     }
 };
 
