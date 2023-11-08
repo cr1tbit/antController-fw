@@ -3,7 +3,7 @@ name: Build firmware
 on:
     push:
       branches: ['main']
-      paths: ['src/**']
+      paths: ['src/**', 'platformio.ini']
 
 jobs:
   build:
