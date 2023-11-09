@@ -32,6 +32,7 @@ env.AddCustomTarget(
         "unzip -u /tmp/front.zip -d /tmp/front",
         "tar -xzf /tmp/front/build.tar.gz -C /tmp/front",
         "rm -rf data/static/*",
+        "mkdir -f data/static",
         "mv -f /tmp/front/build/* data/static/.",
     ],
 )
