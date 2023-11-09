@@ -48,7 +48,7 @@ public:
             auto data = toml::parse(istr, name);
             const auto title = toml::find<std::string>(data, "version");
 
-            ALOGI(title);
+            ALOGD(title);
 
             const auto values = toml::find(data, "pin");
             for(const auto& v : values.as_array()) {
@@ -176,16 +176,16 @@ public:
         if (!is_valid){
             ALOGE("Invalid config!");
         }
-        ALOGR("== button map ==")
+        ALOGD("== button map ==")
         for (auto& b_group : button_groups) {
-            ALOGR("group {}:", b_group.first)
+            ALOGD("group {}:", b_group.first)
             for(auto& b : b_group.second.buttons){
-                ALOGR("\t{}", b.to_string())
+                ALOGD("\t{}", b.to_string())
             }
         }
-        ALOGR("== pins ==")
+        ALOGD("== pins ==")
         for(auto& p : pins){
-            ALOGR("\t{}", p.to_string())
+            ALOGD("\t{}", p.to_string())
         }
     }
 

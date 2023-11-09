@@ -82,6 +82,9 @@ DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_ca
     if (api_call[0] == "INF"){
         return getIoControllerState();
     }
+    if (api_call[0] == "RST"){
+        esp_restart(); //todo refactor it so it returns info to frontend and restarts after delay
+    }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){
             return group->apiAction(api_call);

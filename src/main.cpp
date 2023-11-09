@@ -104,7 +104,7 @@ bool initializeLittleFS(){
         File root = LittleFS.open("/");
         File file = root.openNextFile();
         while(file){
-            ALOGD("{}: {}b",
+            ALOGR("{}: {}b",
                     file.name() ,file.size());
             file = root.openNextFile();
         }
@@ -216,10 +216,10 @@ void setup(){
     apiCallSemaphore = xSemaphoreCreateMutex();
     xTaskCreate( SerialTerminalTask, "serial task",
                 10000, NULL, 2, NULL );
-
+    ALOGI("Connecting WiFi...");
     WiFiSettings.onWaitLoop = []() {
-        ALOGI("Connecting WiFi...");
-        return 3000; 
+        aOledLogger.redraw();
+        return 100;
     };
     WiFiSettings.connect();//will require board reboot after setup
     ALOGI("IP: {}",WiFi.localIP());
@@ -259,11 +259,13 @@ void loop()
 
 void TomlTask(void *parameter)
 {
+    vTaskDelay(50 / portTICK_PERIOD_MS);
     while (1)
     {
         if (Config.loadConfig(CONFIG_FILE)){
             ALOGV("Config loaded");
             Config.printConfig();
+            ALOGI("TomlTask done. Connecting to WiFi...");
         } else {
             vTaskDelay(3000 / portTICK_PERIOD_MS);
             ALOGE("Config load failed");
