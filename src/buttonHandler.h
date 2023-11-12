@@ -11,16 +11,17 @@ class IoController;
 
 class ButtonHandler {
 
-    IoController* dad;
+    IoController* ioController;
 public:
     ButtonHandler() = delete;
-    ButtonHandler(IoController* dad){
-        this->dad = dad;
+    ButtonHandler(IoController* ioController){
+        this->ioController = ioController;
     }
 
     bool apiAction(std::vector<std::string>& api_call);
     void resetOutputsForButtonGroup(const std::string& bGroup);
-    bool activate_button(const std::string& bGroup, button_t button);
+    bool activateButtonFromGroup(const std::string& bGroup, button_t button);
+    bool setButton(button_t button, bool targetState);
     void getState(DynamicJsonDocument& jsonRef);
 
 private:

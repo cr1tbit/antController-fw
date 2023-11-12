@@ -92,6 +92,7 @@ class IoGroup {
     std::string tag;
     virtual void resetOutputs() = 0;
     virtual void getState(JsonObject& jsonRef) = 0;
+    virtual bool isPinHigh(int pin_num) = 0;
 
   private:
     virtual void ioOperation(DynamicJsonDocument& jsonRef) = 0;
@@ -117,7 +118,7 @@ class O_group : public IoGroup {
 
       int offs_pin = pin_num + out_offs;
 
-      ALOGD("set pin {} {} @ {}",
+      ALOGT("set pin {} {} @ {}",
         offs_pin,
         val ? "on" : "off",
         tag.c_str()
@@ -229,7 +230,7 @@ class O_group : public IoGroup {
 
     void getState(JsonObject& jsonRef){
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
-      currentTagData["type"] = "input";
+      currentTagData["type"] = "output";
       currentTagData["bits"] = get_output_bits();
       currentTagData["ioNum"] = out_num;
       return;
@@ -268,12 +269,19 @@ class I_group: public IoGroup {
         return RET_OK;
     }
 
+    bool isPinHigh(int pin_num){
+        if(pin_num >= pins->size()){
+            ALOGE("Pin {} is out of range", pin_num);
+            return false;
+        }
+        return digitalRead((*pins)[pin_num]);
+    }
+
     uint16_t get_input_bits(){
       uint16_t res = 0x00;
       for (int iInput = 0; iInput < pins->size(); iInput++){
-        uint8_t pin_to_read = (*pins)[iInput];
-        if (digitalRead(pin_to_read) == true){
-        res |= (uint16_t)0x01<<iInput;
+        if (isPinHigh(iInput)){
+          res |= (uint16_t)0x01<<iInput;
         }
       }
       return res;
@@ -320,6 +328,7 @@ public:
     }
     DynamicJsonDocument handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
+    bool getIoValue(antControllerIoType_t ioType, int pin_num);
     DynamicJsonDocument getIoControllerState();
 
 private:

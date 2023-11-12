@@ -49,17 +49,44 @@ const std::map<antControllerIoType_t, const char*> ioTypeMap = {
     {INP, "INP"}
 };
 
+
+typedef struct {
+    bool onHigh;
+    std::string guardedButton;
+} pinGuard_t;
+
 class pin_t{
 public:
     std::string name;
     std::string sch;
 
+    std::vector<pinGuard_t> guardedButtonNames;
+
     antControllerIoType_t ioType;
     int ioNum;
 
+    bool operator==(const pin_t& other) const {
+        return name == other.name;
+    }
+
     std::string to_string() const{
-        return fmt::format("{}: {}[{}] ({})",
+        std::string ret = fmt::format("{}: {}[{}] ({})",
             name, ioTypeMap.at(ioType), ioNum, sch);
+        
+        if (guardedButtonNames.size() != 0){
+            ret += " - guarded by: ";
+            for (auto& g : guardedButtonNames){
+                ret += fmt::format("('{}'@{})", g.guardedButton,g.onHigh ? "high" : "low" );
+            }
+        }        
+        return ret;
+    }
+
+    void setGuard(std::string buttonName, bool onHigh){
+        pinGuard_t guard;
+        guard.onHigh = onHigh;
+        guard.guardedButton = buttonName;
+        guardedButtonNames.push_back(guard);
     }
 
     int numFromName(const std::string& numText){
@@ -105,14 +132,14 @@ public:
         }
 
         ioNum = numFromName(antctrl);
-
         if (ioNum < 0){
             const std::string err = fmt::format(
                 "could not parse pin number from: {}", antctrl);
             throw std::runtime_error(err);
         }
+
         ioNum -= 1; //translate schematic numbers to code numbers
-    }
+    }    
 };
 
 class button_t {
@@ -153,11 +180,5 @@ typedef struct {
     }
     std::string currentButtonName = "OFF";
 } buttonGroup_t;
-
-typedef struct {
-    const pin_t* input;
-    bool when;
-    const pin_t* disable;
-} condRule_t;
 
 #endif // IO_CONTROLLER_TYPES_H

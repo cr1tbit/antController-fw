@@ -30,6 +30,7 @@ AsyncEventSource events("/events");
 IoController ioController;
 
 bool shouldPostSocketUpdate = false;
+volatile bool isrPinsChangedFlag = false;
 
 std::vector<std::string> splitString(const std::string& str, char delimiter) {
     std::vector<std::string> result;
@@ -86,6 +87,37 @@ DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code)
     }
 }
 
+void listDir(fs::FS &fs, const char * dirname, uint8_t currentLvl = 0){
+    const int maxLevel = 3;
+    File root = fs.open(dirname);
+    if(!root){
+        Serial.println("- failed to open directory");
+        return;
+    }
+    if(!root.isDirectory()){
+        Serial.println(" - not a directory");
+        return;
+    }
+
+    File file = root.openNextFile();
+    while(file){
+        if(file.isDirectory()){
+            if(currentLvl < maxLevel){
+                // ALOGR("{}:", file.path());
+                listDir(fs, file.path(), currentLvl + 1);
+            } else {
+                ALOGD("LOL");
+            }
+        } else {
+            ALOGD("{}: {}{}",
+                file.path(),
+                (file.size() > 2000)? file.size()/1024 : file.size(),
+                (file.size() > 2000)? "kb" : "b");
+        }
+        file = root.openNextFile();
+    }
+}
+
 bool initializeLittleFS(){
     if(!LittleFS.begin(false)){
         ALOGE("An Error has occurred while mounting SPIFFS");
@@ -101,13 +133,7 @@ bool initializeLittleFS(){
         );
 
         ALOGD("Files:")
-        File root = LittleFS.open("/");
-        File file = root.openNextFile();
-        while(file){
-            ALOGR("{}: {}b",
-                    file.name() ,file.size());
-            file = root.openNextFile();
-        }
+        listDir(LittleFS, "/");
         return true;
     }
 }
@@ -148,6 +174,7 @@ void initializeHttpServer(){
             ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
         }
         client->send(alogGetInitString(), NULL, millis(), 1000);
+        shouldPostSocketUpdate = true;
     });
 
     server.addHandler(&events);
@@ -246,15 +273,25 @@ void loop()
             ).as<std::string>()
         );
     }
+
+    if (counter%100 == 0){
+        socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
+        shouldPostSocketUpdate = true;
+    }
+
+    if (isrPinsChangedFlag){
+        isrPinsChangedFlag = false;
+        ALOGV("ISR pins changed");
+        // shouldPostSocketUpdate = true;
+    }
+
     if (shouldPostSocketUpdate){
         ALOGT("updating state by socket");
         shouldPostSocketUpdate = false;
         std::string ret = (ioController.getIoControllerState()).as<std::string>();
         events.send(ret.c_str(),"state",millis());
     }
-    if (counter%100 == 0){
-        socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
-    }
+
 }
 
 void TomlTask(void *parameter)
@@ -263,7 +300,6 @@ void TomlTask(void *parameter)
     while (1)
     {
         if (Config.loadConfig(CONFIG_FILE)){
-            ALOGV("Config loaded");
             Config.printConfig();
             ALOGI("TomlTask done. Connecting to WiFi...");
         } else {

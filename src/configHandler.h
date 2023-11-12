@@ -47,55 +47,18 @@ public:
         try {
             auto data = toml::parse(istr, name);
             const auto title = toml::find<std::string>(data, "version");
-
             ALOGD(title);
 
-            const auto values = toml::find(data, "pin");
-            for(const auto& v : values.as_array()) {
-                pin_t pin (
-                    toml::find<std::string>(v,"name"),
-                    toml::find<std::string>(v,"antctrl"),
-                    toml::find<std::string>(v,"sch")
-                );
-                pins.push_back(pin);
-            }
+            int statPinCount = parsePins(data);            
+            int statButtonCount = parseButtons(data);
 
-            const auto _button_groups = toml::find(data, "buttons");
-
-            for(const auto& bg : _button_groups.as_table()){
-                button_groups[bg.first] = {};
-                for(const auto& b : bg.second.as_array()){
-                    button_t button(
-                        toml::find<std::string>(b,"name"),
-                        toml::find<std::vector<std::string>>(b,"pins")
-                    );
-                    button_groups[bg.first].buttons.push_back(button);
-                }
-            }
-            try {
-                const auto _condrules = toml::find(data, "cond");
-
-                for(const auto& cr : _condrules.as_array()){
-                    condRule_t rule;
-
-                    std::string inputName = toml::find<std::string>(cr,"input");
-                    std::string disableName = toml::find<std::string>(cr,"disable");
-                    rule.when = toml::find<int>(cr,"when");
-
-                    const pin_t& pin = getPinByName(inputName, false);
-                    rule.input = &pin;
-
-                    const pin_t& pin2 = getPinByName(disableName, false);
-                    rule.disable = &pin2;
-
-                    rules.push_back(rule);
-                }
-            } catch (std::out_of_range& e){
-                ALOGI("No cond rules found", e.what());
-            }
-            attachInterruptsToCondPins();
+            // int statCondCount = parseCondRules(data);            
+            // attachInterruptsToCondPins();
             // assignPinsToButtonGroup();
+
             is_valid = true;
+            ALOGI("Loaded {} pins, {} buttons",
+                statPinCount, statButtonCount);
             // printConfig();
             return true;
         } catch (std::exception& e){
@@ -105,49 +68,67 @@ public:
         }
     }
 
-    void attachInterruptsToCondPins(){
-        for (auto& rule : rules){
-            if (rule.input->ioType == INP){
+    int parsePins(toml::value& v){
+        const auto values = toml::find(v, "pin");
+        int counter = 0;
 
-            }
+        for(const auto& v : values.as_array()) {
+            pin_t pin (
+                toml::find<std::string>(v,"name"),
+                toml::find<std::string>(v,"antctrl"),
+                toml::find<std::string>(v,"sch")
+            );
+            pins.push_back(pin);
+            counter++;
         }
+        return counter;
     }
 
-    // void assignPinsToButtonGroup() {
-    //     // iterate over groups [a;d]
-    //     for (auto& b_group : button_groups) {
-    //         auto& groupName = b_group.first;
-    //         auto& groupButtons = b_group.second;
+    int parseButtons(toml::value& v){
+        const auto _button_groups = toml::find(v, "buttons");
+        int counter = 0;
 
-    //         auto& groupPins = pins_by_group[groupName];
-    //         // get a list of pointers to pins used in each group
-    //         for(auto& b : groupButtons.buttons){
-    //             for(auto& p : b.pinNames){
-    //                 const pin_t& pin = getPinByName(p, false);
-    //                 const pin_t* pinPtr = &pin;
-    //                 // ALOGI("pin {}@{} assigned to group {}",
-    //                 //     pin.to_string(),
-    //                 //     static_cast<const void*>(pinPtr),
-    //                 //     groupName.c_str()
-    //                 // );
-    //                 groupPins.push_back(pinPtr);
-    //             }
-    //         }
-    //         // remove repeating pin pointers
-    //         std::sort(groupPins.begin(), groupPins.end());
-    //         auto newEnd = std::unique(groupPins.begin(), groupPins.end());
-    //         groupPins.erase(newEnd, groupPins.end());
+        for(const auto& bg : _button_groups.as_table()){
+            button_groups[bg.first] = {};
+            for(const auto& b : bg.second.as_array()){
+                button_t button(
+                    toml::find<std::string>(b,"name"),
+                    toml::find<std::vector<std::string>>(b,"pins")
+                );
+                if (b.contains("disable_on_low")){
+                    const std::vector<std::string>& condPinNames = 
+                        toml::find<std::vector<std::string>>(b,"disable_on_low");
 
-    //         // now print all pointers attached to a group
-    //         ALOGI("{} pins for group {}:",groupPins.size(), groupName.c_str());
-    //         // ALOGI("{}", groupPins.at(0)->to_string());
-    //         for (auto p : groupPins){
-    //             ALOGI("{}", p->to_string());
-    //         }
-    //     }
-    // }
+                    for (auto& p : condPinNames){
+                        pin_t& pin = getPinByName(p);
+                        pin.setGuard(button.name, false);
+                    }
+                }
+                if (b.contains("disable_on_high")){
+                    const std::vector<std::string>& condPinNames = 
+                        toml::find<std::vector<std::string>>(b,"disable_on_high");
 
-    const pin_t& getPinByName(const std::string& name, bool assertDuplicates = false){
+                    for (auto& p : condPinNames){
+                        pin_t& pin = getPinByName(p);
+                        pin.setGuard(button.name, true);
+                    }
+                }
+                counter++;
+                button_groups[bg.first].buttons.push_back(button);
+            }
+        }
+        return counter;
+    }
+
+    void attachInterruptsToCondPins(){
+        // for (auto& rule : rules){
+        //     if (rule.input->ioType == INP){
+
+        //     }
+        // }
+    }
+
+    pin_t& getPinByName(const std::string& name, bool assertDuplicates = false){
         std::vector<pin_t> found_pins;
         for(auto& p : pins){
             // ALOGD(p.to_string());
@@ -167,10 +148,24 @@ public:
             throw std::runtime_error(err);
         } else {
             const std::string err = fmt::format(
-            "pin {} not found!", name);
+            "pin '{}' not found!", name);
             throw std::runtime_error(err);
         }
     }
+
+    button_t& getButtonByName(const std::string& name){
+        for(auto& bg : button_groups){
+            for(auto& b : bg.second.buttons){
+                if (b.name == name){
+                    return b;
+                }
+            }
+        }
+        const std::string err = fmt::format(
+            "button '{}' not found!", name);
+        throw std::runtime_error(err);
+    }
+
 
     void printConfig(){
         if (!is_valid){
@@ -194,7 +189,6 @@ public:
     std::map<std::string, buttonGroup_t> button_groups;
     // std::map<std::string, std::vector<const pin_t*>> pins_by_group;
     std::vector<pin_t> pins;
-    std::vector<condRule_t> rules;
 };
 
 extern Config_ &Config;

@@ -2,9 +2,10 @@
 #include "ioController.h"
 #include "ioControllerTypes.h"
 
+extern bool isrPinsChangedFlag;
+
 void IRAM_ATTR input_pins_isr() {
-  static bool pins_changed = false;
-  pins_changed = true;
+  isrPinsChangedFlag = true;
   // digitalWrite(PIN_LED_STATUS,~digitalRead(PIN_LED_STATUS));
 }
 
@@ -66,7 +67,7 @@ DynamicJsonDocument IoController::getIoControllerState(){
 
     retJson["msg"] = "OK";
     retJson["retCode"] = 200;
-    ALOGI("Json bufer {}/{}b", retJson.memoryUsage(), retJson.capacity());
+    ALOGT("Json bufer {}/{}b", retJson.memoryUsage(), retJson.capacity());
 
     return retJson;
 }
@@ -95,7 +96,6 @@ DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_ca
 }
 
 void IoController::setOutput(antControllerIoType_t ioType, int pin_num, bool val){
-    // ALOGD("enum {}", ioType);
     if (!isOutputType(ioType)){
         ALOGE("{} is not an output!", ioTypeMap.at(ioType));
         return;
@@ -107,4 +107,14 @@ void IoController::setOutput(antControllerIoType_t ioType, int pin_num, bool val
             return;
         }
     }
+}
+
+bool IoController::getIoValue(antControllerIoType_t ioType, int pin_num){
+    for (auto& g: ioGroups){
+        if (g->ioType == ioType){
+            return g->isPinHigh(pin_num);
+        }
+    }
+    ALOGE("IO type {} not found", ioTypeMap.at(ioType));
+    return false;
 }
