@@ -17,6 +17,7 @@
 
 #include "pinDefs.h"
 #include "secrets.h"
+#include "antControllerHelpers.h"
 
 #include "ioController.h"
 #include "main.h"
@@ -32,22 +33,6 @@ IoController ioController;
 bool shouldPostSocketUpdate = false;
 volatile bool isrPinsChangedFlag = false;
 
-std::vector<std::string> splitString(const std::string& str, char delimiter) {
-    std::vector<std::string> result;
-    std::string::size_type start = 0;
-    std::string::size_type end = str.find(delimiter);
-
-    while (end != std::string::npos) {
-        result.push_back(str.substr(start, end - start));
-        start = end + 1;
-        end = str.find(delimiter, start);
-    }
-
-    result.push_back(str.substr(start));
-
-    return result;
-}
-
 SemaphoreHandle_t apiCallSemaphore;
 
 DynamicJsonDocument getErrorJson(const std::string& msg){
@@ -62,7 +47,7 @@ DynamicJsonDocument getErrorJson(const std::string& msg){
     retCode: int
  */
 DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code){
-    ALOGD("Analyzing subpath: {}", subpath.c_str());
+    ALOGD("Analyzing subpath: '{}'", subpath.c_str());
     //schema is <CMD>/<INDEX>/<VALUE>
     *ret_code = 200;
 
@@ -87,37 +72,6 @@ DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code)
     }
 }
 
-void listDir(fs::FS &fs, const char * dirname, uint8_t currentLvl = 0){
-    const int maxLevel = 3;
-    File root = fs.open(dirname);
-    if(!root){
-        Serial.println("- failed to open directory");
-        return;
-    }
-    if(!root.isDirectory()){
-        Serial.println(" - not a directory");
-        return;
-    }
-
-    File file = root.openNextFile();
-    while(file){
-        if(file.isDirectory()){
-            if(currentLvl < maxLevel){
-                // ALOGR("{}:", file.path());
-                listDir(fs, file.path(), currentLvl + 1);
-            } else {
-                ALOGD("LOL");
-            }
-        } else {
-            ALOGD("{}: {}{}",
-                file.path(),
-                (file.size() > 2000)? file.size()/1024 : file.size(),
-                (file.size() > 2000)? "kb" : "b");
-        }
-        file = root.openNextFile();
-    }
-}
-
 bool initializeLittleFS(){
     if(!LittleFS.begin(false)){
         ALOGE("An Error has occurred while mounting SPIFFS");
@@ -126,13 +80,13 @@ bool initializeLittleFS(){
         return false;
     } else {
         ALOGD("LittleFS init ok.");
-        ALOGD(
+        ALOGD_RAW(
             "Using {}/{} kb.",
             LittleFS.usedBytes()/1024,
             LittleFS.totalBytes()/1024
         );
 
-        ALOGD("Files:")
+        ALOGD_RAW("Files:")
         listDir(LittleFS, "/");
         return true;
     }
@@ -140,6 +94,7 @@ bool initializeLittleFS(){
 
 void initializeHttpServer(){
     server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        ALOGD("GET config");
         request->send(LittleFS, CONFIG_FILE, "text/plain", false);
     });
 
@@ -157,6 +112,7 @@ void initializeHttpServer(){
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         if (LittleFS.exists("/static/index.html")){
+            ALOGD("GET index");
             request->send(LittleFS, "/static/index.html", "text/html", false);
         } else {
             request->send(404, "text/plain",
@@ -171,9 +127,17 @@ void initializeHttpServer(){
 
     events.onConnect([](AsyncEventSourceClient *client){
         if(client->lastId()){
-            ALOGD("Client reconnected! Last message ID that it had: %u\n", client->lastId());
+            ALOGD("Client reconnected! Last message ID that it had: {}\n", client->lastId());
         }
-        client->send(alogGetInitString(), NULL, millis(), 1000);
+        client->send("AntController connected",NULL,millis(),1000);
+        events.send(
+            fmt::format("{}{}{}", 
+                alogColorGrey, alogGetInitString(1), alogColorReset).c_str(),
+            "log", millis());
+        events.send(fmt::format("{}{}{}", 
+                alogColorGrey, alogGetInitString(2), alogColorReset).c_str(),
+            "log", millis());
+        ALOGT("events connected");
         shouldPostSocketUpdate = true;
     });
 
@@ -184,21 +148,15 @@ void initializeHttpServer(){
     server.begin();
 }
 
-void uartPrintAlogHandle(const char* str){
-    Serial.println(str);
-}
-
-void socketAlogHandle(const char* str){
-    events.send(str,"log",millis());
-}
-
 TwoWire i2c = TwoWire(0);
 SerialLogger serialLogger = SerialLogger(
-    uartPrintAlogHandle, LOG_DEBUG, ALOG_FANCY);
-
+    [](const char* str) {Serial.println(str);},
+    LOG_DEBUG, ALOG_FANCY, ALOG_FILELINE
+);
 SerialLogger socketLogger = SerialLogger(
-    socketAlogHandle, LOG_DEBUG);
-
+    [](const char* str) { events.send(str,"log",millis());},
+    LOG_DEBUG, ALOG_FANCY, ALOG_NOFILELINE
+);
 AdvancedOledLogger aOledLogger = AdvancedOledLogger(
     i2c, LOG_INFO, OLED_128x64, OLED_NORMAL);
 
@@ -274,8 +232,12 @@ void loop()
         );
     }
 
+    if (counter%20 == 0){
+        events.send(".","heartbeat",millis());
+    }
+
     if (counter%100 == 0){
-        socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
+        // socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
         shouldPostSocketUpdate = true;
     }
 

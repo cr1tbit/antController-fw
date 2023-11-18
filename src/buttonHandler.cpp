@@ -39,6 +39,7 @@ void ButtonHandler::resetOutputsForButtonGroup(const std::string& bGroup){
     // for (auto pin: Config.pins_by_group[bGroup]){
     //     ioController->setOutput(pin->ioType, pin->ioNum, false);
     // }
+    ALOGD("resetting outputs for group {}", bGroup.c_str());
     std::vector<pin_t> pinsToTurnOff;
 
     for (auto& button: Config.button_groups[bGroup].buttons){
@@ -85,16 +86,19 @@ bool ButtonHandler::activateButtonFromGroup(const std::string& bGroupName, butto
     // assert buttons guarded by to-be enabled pins
     for (auto& pin: pinsToActivate){
         for (auto& butName: pin.guardedButtonNames){
+            ALOGI("Checking pin: '{}'", pin.to_string().c_str());
             if (butName.guardedButton == button.name){
-                ALOGW("button {} is prevented by pin '{}' value!",
+                ALOGW("button '{}' is prevented by pin '{}' value!",
                     butName.guardedButton, pin.name)
                 return false;
             } else {
+                ALOGW("button '{}' is being turned off", butName.guardedButton)
                 setButton(Config.getButtonByName(butName.guardedButton),false);
             }
         }
     }
     //then activate the pins
+    logPinNames("turning on pins", pinsToActivate);
     for (auto& pin: pinsToActivate){
         this->ioController->setOutput(pin.ioType, pin.ioNum, true);
     }
@@ -104,7 +108,7 @@ bool ButtonHandler::activateButtonFromGroup(const std::string& bGroupName, butto
 }
 
 bool ButtonHandler::apiAction(std::vector<std::string>& api_call){
-    ALOGI("API call for buttonHandler");
+    ALOGT("API call for buttonHandler");
 
     if (api_call.size() < 3){
         return false;

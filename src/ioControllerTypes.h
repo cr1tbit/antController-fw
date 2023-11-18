@@ -74,7 +74,7 @@ public:
             name, ioTypeMap.at(ioType), ioNum, sch);
         
         if (guardedButtonNames.size() != 0){
-            ret += " - guarded by: ";
+            ret += " - guards buttons: ";
             for (auto& g : guardedButtonNames){
                 ret += fmt::format("('{}'@{})", g.guardedButton,g.onHigh ? "high" : "low" );
             }

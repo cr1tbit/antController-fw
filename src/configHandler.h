@@ -46,8 +46,8 @@ public:
     bool parseToml(std::istringstream& istr, const char* name){
         try {
             auto data = toml::parse(istr, name);
-            const auto title = toml::find<std::string>(data, "version");
-            ALOGD(title);
+            const auto version = toml::find<std::string>(data, "version");
+            ALOGD("Config version: {}", version);
 
             int statPinCount = parsePins(data);            
             int statButtonCount = parseButtons(data);
@@ -166,21 +166,20 @@ public:
         throw std::runtime_error(err);
     }
 
-
     void printConfig(){
         if (!is_valid){
             ALOGE("Invalid config!");
         }
-        ALOGD("== button map ==")
+        ALOGD_RAW("== button map ==")
         for (auto& b_group : button_groups) {
-            ALOGD("group {}:", b_group.first)
+            ALOGD_RAW("group {}:", b_group.first)
             for(auto& b : b_group.second.buttons){
-                ALOGD("\t{}", b.to_string())
+                ALOGD_RAW("\t{}", b.to_string())
             }
         }
-        ALOGD("== pins ==")
+        ALOGD_RAW("== pins ==")
         for(auto& p : pins){
-            ALOGD("\t{}", p.to_string())
+            ALOGD_RAW("\t{}", p.to_string())
         }
     }
 
@@ -192,18 +191,5 @@ public:
 };
 
 extern Config_ &Config;
-
-// once we move to espidf this will work.
-// void getStackUsed(){
-//     TaskHandle_t xHandle;
-//     TaskStatus_t xTaskDetails;
-
-//     xHandle = xTaskGetHandle( "toml task" );
-//     configASSERT( xHandle );
-
-//     vTaskGetInfo(xHandle, &xTaskDetails, pdTRUE, eInvalid );
-
-//     ALOGV("watermark is {}",xTaskDetails.usStackHighWaterMark);
-// }
 
 #endif //CONFIG_HANDLER_H
