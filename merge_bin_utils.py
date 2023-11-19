@@ -49,6 +49,7 @@ env.AddCustomTarget(
         "$BUILD_DIR/littlefs.bin"
     ],
     actions=[
+        "mkdir -p bin",
         "cp -f $BUILD_DIR/firmware.bin bin/firmware.bin",
         "cp -f $BUILD_DIR/partitions.bin bin/partitions.bin",
         "cp -f $BUILD_DIR/bootloader.bin bin/bootloader.bin",
