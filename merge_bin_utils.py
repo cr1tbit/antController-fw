@@ -13,11 +13,14 @@ def getMergeBinCommand(outName: str):
     esptool.py --chip ESP32 merge_bin\
         -o " + outName + " --flash_size=keep"
     
-    for addr,path in env["FLASH_EXTRA_IMAGES"]:
-        command += " {} {} ".format(addr, path)
+    # for addr,path in env["FLASH_EXTRA_IMAGES"]:
+    #     command += " {} {} ".format(addr, path)
 
-    command += env["ESP32_APP_OFFSET"] + " $BUILD_DIR/firmware.bin"    
-    command += " 0x310000 $BUILD_DIR/littlefs.bin"
+    command += " 0x1000 bin/bootloader.bin"
+    command += " 0x8000 bin/partitions.bin"    
+    # command += env["ESP32_APP_OFFSET"] + " bin/firmware.bin"    
+    command += " 0x10000 bin/firmware.bin"    
+    command += " 0x310000 bin/littlefs.bin"
     return command    
 
 env.AddCustomTarget(
@@ -42,12 +45,14 @@ env.AddCustomTarget(
     dependencies=[
         "$BUILD_DIR/firmware.bin",
         "$BUILD_DIR/partitions.bin",
-        "$BUILD_DIR/bootloader.bin"
+        "$BUILD_DIR/bootloader.bin",
+        "$BUILD_DIR/littlefs.bin"
     ],
     actions=[
-        "cp -f $BUILD_DIR/firmware.bin firmware.bin",
-        "cp -f $BUILD_DIR/partitions.bin partitions.bin",
-        "cp -f $BUILD_DIR/bootloader.bin bootloader.bin"
+        "cp -f $BUILD_DIR/firmware.bin bin/firmware.bin",
+        "cp -f $BUILD_DIR/partitions.bin bin/partitions.bin",
+        "cp -f $BUILD_DIR/bootloader.bin bin/bootloader.bin",
+        "cp -f $BUILD_DIR/littlefs.bin bin/littlefs.bin"
     ],
     title="Get binaries separatelly (helper for CI)",
     description=""
@@ -56,13 +61,13 @@ env.AddCustomTarget(
 env.AddCustomTarget(
     name="fullimage",
     dependencies=[
-        "$BUILD_DIR/partitions.bin",
-        "$BUILD_DIR/littlefs.bin",
-        "$BUILD_DIR/bootloader.bin",
-        "$BUILD_DIR/firmware.bin"
+        "bin/partitions.bin",
+        "bin/littlefs.bin",
+        "bin/bootloader.bin",
+        "bin/firmware.bin"
     ],
     actions=[
-        getMergeBinCommand("fullimage.bin")
+        getMergeBinCommand("bin/fullimage.bin")
     ],
     title="Get binary with filesystem",
     description=""
@@ -71,10 +76,10 @@ env.AddCustomTarget(
 env.AddCustomTarget(
     name="flashall",
     dependencies=[
-        "merged-flash.bin"
+        "bin/merged-flash.bin"
     ],
     actions=[
-        "esptool.py write_flash 0x0 merged-flash.bin"
+        "esptool.py write_flash 0x0 bin/merged-flash.bin"
     ],
     title="Flash merged binary",
     description=""

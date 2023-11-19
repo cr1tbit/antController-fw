@@ -7,7 +7,7 @@ secrets.h
 *.out
 result.json
 
-*.bin
+bin/**
 
 data/wifi-*
 data/static

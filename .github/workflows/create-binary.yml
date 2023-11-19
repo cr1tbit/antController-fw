@@ -24,8 +24,8 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
-      - name: generate mock secrets header
-        run: cp include/secrets.h.example include/secrets.h
+    #   - name: generate mock secrets header
+    #     run: cp include/secrets.h.example include/secrets.h
 
       - name: Fetch frontend
         env:
@@ -35,20 +35,20 @@ jobs:
       - name: Generate littlefs image
         run: pio run -e antcontroller -t buildfs
     
+      - name: Prepare firmware binaries
+        run: pio run -e antcontroller -t fwimage
+
       - name: Build the project and generate full image
         run: pio run -e antcontroller -t fullimage
-
-      - name: Export built firmware
-        run: pio run -e antcontroller -t fwimage
 
       - name: Export full binary image
         uses: actions/upload-artifact@v3
         with:
           name: fullimage.bin
-          path: fullimage.bin
+          path: bin/fullimage.bin
 
       - name: Export firmware binary
         uses: actions/upload-artifact@v3
         with:
           name: firmware.bin
-          path: firmware.bin
+          path: bin/firmware.bin
