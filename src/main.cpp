@@ -155,7 +155,7 @@ SerialLogger serialLogger = SerialLogger(
 );
 SerialLogger socketLogger = SerialLogger(
     [](const char* str) { events.send(str,"log",millis());},
-    LOG_DEBUG, ALOG_FANCY, ALOG_NOFILELINE
+    LOG_INFO, ALOG_FANCY, ALOG_NOFILELINE
 );
 AdvancedOledLogger aOledLogger = AdvancedOledLogger(
     i2c, LOG_INFO, OLED_128x64, OLED_NORMAL);

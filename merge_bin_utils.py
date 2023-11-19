@@ -29,7 +29,7 @@ env.AddCustomTarget(
             "-H \"Authorization: Bearer " + token + "\" "
             "-H \"X-GitHub-Api-Version: 2022-11-28\" " + frontend_addr +
             " --output /tmp/front.zip",
-        "unzip -u /tmp/front.zip -d /tmp/front",
+        "unzip -ou /tmp/front.zip -d /tmp/front",
         "tar -xzf /tmp/front/build.tar.gz -C /tmp/front",
         "rm -rf data/static/*",
         "mkdir -p data/static",
