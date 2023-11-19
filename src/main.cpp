@@ -16,7 +16,6 @@
 #include "advancedOledLogger.h"
 
 #include "pinDefs.h"
-#include "secrets.h"
 #include "antControllerHelpers.h"
 
 #include "ioController.h"
