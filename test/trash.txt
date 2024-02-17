@@ -1,0 +1,26 @@
+
+void mainHandleImprov(const char* data, size_t len){
+    improv::ImprovCommand cmd = improv::parse_improv_data(
+        (const uint8_t*)data, len, true);
+
+    ALOGV("IMPROV stuff:\n {}\n{}\n{}",
+        cmd.command,
+        cmd.ssid,
+        cmd.password);
+
+    std::string response = "OK";
+
+    for (auto& c: improv::build_rpc_response(cmd.command, {response})){
+        Serial.write(c);    
+    }
+}
+
+
+
+
+
+                //check if string contains IMPROV tag
+                if (cmd.find("IMPROV") != std::string::npos){
+                    mainHandleImprov(cmd.c_str(), cmd.size());
+                    break;
+                }

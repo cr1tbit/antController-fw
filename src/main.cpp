@@ -22,6 +22,9 @@
 #include "main.h"
 #include "configHandler.h"
 
+#include "gracefulRestart.h"
+#include "clitussiStub.h"
+
 const char CONFIG_FILE[] = "/buttons.conf";
 
 AsyncWebServer server(80);
@@ -31,6 +34,9 @@ IoController ioController;
 
 bool shouldPostSocketUpdate = false;
 volatile bool isrPinsChangedFlag = false;
+bool deviceHasValidState = true;
+
+clitussiStub clitussi;
 
 SemaphoreHandle_t apiCallSemaphore;
 
@@ -45,7 +51,25 @@ DynamicJsonDocument getErrorJson(const std::string& msg){
     msg: string
     retCode: int
  */
-DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code){
+
+//create enum with potential sources of API calls
+typedef enum {
+    API_SOURCE_SOCKET,
+    API_SOURCE_SERIAL,
+    API_SOURCE_HTTP
+} apiSource_t;
+
+bool spurt(const String& fn, const std::string& content) {
+    File f = LittleFS.open(fn, "w");
+    if (!f) {
+        return false;
+    }
+    auto w = f.print(content.c_str());
+    f.close();
+    return w == content.length();
+}
+
+DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code, apiSource_t source = API_SOURCE_HTTP){
     ALOGD("Analyzing subpath: '{}'", subpath.c_str());
     //schema is <CMD>/<INDEX>/<VALUE>
     *ret_code = 200;
@@ -92,6 +116,9 @@ bool initializeLittleFS(){
 }
 
 void initializeHttpServer(){
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "content-type");
+
     server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
         ALOGD("GET config");
         request->send(LittleFS, CONFIG_FILE, "text/plain", false);
@@ -143,7 +170,6 @@ void initializeHttpServer(){
     server.addHandler(&events);
     shouldPostSocketUpdate = true;
 
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     server.begin();
 }
 
@@ -193,9 +219,15 @@ void setup(){
         ALOGT("LittleFS init ok.");
         // spawn on another task because main arduino task
         // has hardcoded 8kb stack size
-        xTaskCreate( TomlTask, "toml task",
+        bool taskCreated = xTaskCreate( TomlTask, "toml task",
                 65536, NULL, 6, NULL );
-    } else { /*idk*/ }
+        if (taskCreated != pdPASS) {
+            ALOGE("Failed to create TOML task");
+            deviceHasValidState = false;
+        }
+    } else { 
+        deviceHasValidState = false;
+    }
 
     apiCallSemaphore = xSemaphoreCreateMutex();
     xTaskCreate( SerialTerminalTask, "serial task",
@@ -205,6 +237,13 @@ void setup(){
         aOledLogger.redraw();
         return 100;
     };
+    WiFiSettings.onPortal = []() {
+        ALOGE("Couldn't connect to WiFi. "
+        "Connect to wifi beginning with \"esp\" with your smartphone. "
+        "The OLED screen will now hang.");
+        aOledLogger.redraw();
+    };
+
     WiFiSettings.connect();//will require board reboot after setup
     ALOGI("IP: {}",WiFi.localIP());
     initializeHttpServer();
@@ -257,6 +296,7 @@ void loop()
 
 void TomlTask(void *parameter)
 {
+    ALOGV("TOMl task start");
     vTaskDelay(50 / portTICK_PERIOD_MS);
     while (1)
     {
@@ -274,47 +314,37 @@ void TomlTask(void *parameter)
 }
 
 void SerialTerminalTask(void *parameter)
-{
-    std::vector<char> buf;
-
-    int ret_code = 0;
-    while (1){
-        while (Serial.available())
-        {
-            char c = Serial.read();
-
-            switch (c)
-            {
-            case '\r':
-                Serial.print('\r');
-                break;
-            case '\b':
-                if (buf.size() > 0)
-                {
-                    buf.pop_back();
-                    Serial.print("\b \b");
-                }
-                break;
-            case '\n':
-            {
-                const std::string cmd(buf.begin(), buf.end());
-                ALOGV("Op result: {}",
-                    mainHandleApiCall(
-                        cmd, &ret_code)
-                        .as<std::string>());
-                buf.clear();
-                break;
+{   
+    clitussi.attachCommandCb("wifi",[](std::string cmd){
+        auto substrings = splitString(cmd, ' ');
+        if (substrings.size() == 3){
+            if (spurt("/wifi-ssid", substrings[1]) && spurt("/wifi-password", substrings[2])){
+                ALOGI("New WIFI settings saved. Resetting the device");
+                gracefulRestart();
+            } else {
+                ALOGE("Error writing to FS");
             }
-            default:
-            {
-                if (buf.size() <= 40)
-                {
-                    buf.push_back(c);
-                    Serial.print(c);
-                }
-            }
-            }
+        } else {
+            ALOGE("Invalid WIFI command");
         }
+    });
+
+    clitussi.attachCommandCb("IMPROV",[](std::string cmd){
+        //TODO: IMPROVe this section
+        ALOGI("IMPROV command received");
+    });
+
+    clitussi.attachCommandCb("",[](std::string cmd){
+        int ret_code;
+
+        ALOGV("Op result: {}",
+            mainHandleApiCall(
+                cmd, &ret_code, API_SOURCE_SERIAL)
+                .as<std::string>(),ret_code);
+    });
+
+    for (;;){
+        clitussi.loop();
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }

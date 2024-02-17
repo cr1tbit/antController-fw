@@ -1,6 +1,7 @@
 
 #include "ioController.h"
 #include "ioControllerTypes.h"
+#include "gracefulRestart.h"
 
 extern bool isrPinsChangedFlag;
 
@@ -84,7 +85,8 @@ DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_ca
         return getIoControllerState();
     }
     if (api_call[0] == "RST"){
-        esp_restart(); //todo refactor it so it returns info to frontend and restarts after delay
+        gracefulRestart();
+        retJson["msg"] = "OK";
     }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){

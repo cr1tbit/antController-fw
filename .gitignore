@@ -11,3 +11,5 @@ bin/**
 
 data/wifi-*
 data/static
+
+utils/wifi-*
