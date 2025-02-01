@@ -53,7 +53,6 @@ public:
             int statButtonCount = parseButtons(data);
 
             // int statCondCount = parseCondRules(data);            
-            // attachInterruptsToCondPins();
             // assignPinsToButtonGroup();
 
             is_valid = true;
@@ -118,14 +117,6 @@ public:
             }
         }
         return counter;
-    }
-
-    void attachInterruptsToCondPins(){
-        // for (auto& rule : rules){
-        //     if (rule.input->ioType == INP){
-
-        //     }
-        // }
     }
 
     pin_t& getPinByName(const std::string& name, bool assertDuplicates = false){

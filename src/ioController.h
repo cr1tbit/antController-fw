@@ -261,7 +261,6 @@ class I_group: public IoGroup {
     retCode_t enable(){
         for (int iInput: *pins){
             pinMode(iInput, INPUT_PULLDOWN);
-            attachInterrupt(iInput, input_pins_isr, CHANGE);
         }
 
         pinMode(pin_in_buff_ena,OUTPUT);
@@ -325,11 +324,23 @@ public:
     void begin(TwoWire &wire){
       _wire = &wire;
       init_controller_objects();
+      spawnWatchdogTask();
     }
     DynamicJsonDocument handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
     bool getIoValue(antControllerIoType_t ioType, int pin_num);
     DynamicJsonDocument getIoControllerState();
+    DynamicJsonDocument returnApiUnavailable(DynamicJsonDocument& jsonRef);
+
+    void setLocked(bool shouldLock);
+    void setPanic(bool shouldPanic);
+    void attachNotifyTaskHandle(TaskHandle_t taskHandle);
+    void notifyAttachedTask();
+    void spawnWatchdogTask();
+
+    bool locked;
+    bool inPanic = false;
+    TaskHandle_t notifyTaskHandle = NULL;
 
 private:
     TwoWire* _wire;
@@ -340,6 +351,8 @@ private:
 
     retCode_t init_controller_objects();
     retCode_t init_expander(PCA9555* p_exp, int addr);
+
+    void setDefaultState();
 };
 
 #endif // IO_CONTROLLER_H

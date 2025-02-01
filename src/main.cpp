@@ -33,7 +33,6 @@ AsyncEventSource events("/events");
 IoController ioController;
 
 bool shouldPostSocketUpdate = false;
-volatile bool isrPinsChangedFlag = false;
 bool deviceHasValidState = true;
 
 clitussiStub clitussi;
@@ -213,6 +212,7 @@ void setup(){
     ALOG_I2CLS(i2c);
 
     ioController.begin(i2c);
+    ioController.attachNotifyTaskHandle(xTaskGetCurrentTaskHandle());
     ALOGD("ioController start");
 
     if (initializeLittleFS()){
@@ -251,16 +251,10 @@ void setup(){
     ALOGI("Application start!");
 }
 
-int counter = 0;
-void loop()
-{
+void apiTest(){
+    static int counter = 0;
     int ret_code;
-    handle_io_pattern(PIN_LED_STATUS, PATTERN_HBEAT);
 
-    aOledLogger.redraw();
-
-    delay(100);
-    counter++;
     if (digitalRead(PIN_BUT4) == LOW){
         ALOGI("Button 4 is pressed - doing test call");
         ALOGI("Test call result: {0}",
@@ -269,20 +263,26 @@ void loop()
             ).as<std::string>()
         );
     }
+}
+
+int counter = 0;
+void loop()
+{
+    if (ulTaskNotifyTake(pdTRUE, 100 / portTICK_PERIOD_MS)){
+        ALOGT("Task notified");
+        shouldPostSocketUpdate = true;
+    }
+
+    aOledLogger.redraw();
+    counter++;
+    apiTest();
 
     if (counter%20 == 0){
         events.send(".","heartbeat",millis());
     }
 
     if (counter%100 == 0){
-        // socketAlogHandle(fmt::format("heartbeat - runtime: {}s", millis()/1000).c_str());
         shouldPostSocketUpdate = true;
-    }
-
-    if (isrPinsChangedFlag){
-        isrPinsChangedFlag = false;
-        ALOGV("ISR pins changed");
-        // shouldPostSocketUpdate = true;
     }
 
     if (shouldPostSocketUpdate){
@@ -290,8 +290,9 @@ void loop()
         shouldPostSocketUpdate = false;
         std::string ret = (ioController.getIoControllerState()).as<std::string>();
         events.send(ret.c_str(),"state",millis());
-    }
 
+        counter = 0;
+    }
 }
 
 void TomlTask(void *parameter)
@@ -308,8 +309,7 @@ void TomlTask(void *parameter)
             ALOGE("Config load failed");
         }
 
-        while (1)
-            vTaskDelay(60000 / portTICK_PERIOD_MS);
+        vTaskDelete(NULL);
     }
 }
 

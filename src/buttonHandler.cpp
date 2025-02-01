@@ -107,6 +107,26 @@ bool ButtonHandler::activateButtonFromGroup(const std::string& bGroupName, butto
     return true;
 }
 
+bool ButtonHandler::checkInputPinGuards(){
+    // for (auto& pin: Config.pins){
+    //     if (pin.ioType != INP){
+    //         continue;
+    //     }
+
+    //     for (auto& guard: pin.guardedButtonNames){
+    //         auto but = Config.getButtonByName(guard.guardedButton);
+    //         if (but)
+    //         if (ioController->getIoValue(pin.ioType, pin.ioNum) == guard.onHigh){
+    //             ALOGW("button '{}' is prevented by pin '{}' value: {}",
+    //                 guard.guardedButton, pin.name, guard.onHigh ? "high" : "low");
+    //             if(guard.guardedButton)
+
+    //         }
+    //     }
+    // }
+    return true;
+}
+
 bool ButtonHandler::apiAction(std::vector<std::string>& api_call){
     ALOGT("API call for buttonHandler");
 

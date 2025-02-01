@@ -126,10 +126,13 @@ descr =   ""        <- optional description for this pin
 ```
 
 ``` toml
-[[buttons.a]]             <- buttons.<group> 
-name =  "160m VERTICAL"   <- name that will be called by `/BUT/<name>`
-descr = ""                <- optional description for this pin
-pins = [ "Z2-7", "Z1-1" ] <- pins activated by this button, must match <sch> or <name> of a pin.
+[[buttons.a]]              <- buttons.<group> 
+name =  "160m VERTICAL"    <- name that will be called by `/BUT/<name>`
+descr = ""                 <- optional description for this pin
+pins = [ "Z2-7", "Z1-1" ]  <- pins activated by this button, must match <sch> or <name> of a pin.
+disable_on_low = ["Z2-2"]  <- a button might be dangerous to use in some situations. These 2 settings
+disable_on_high = ["Z2-3"] <- allow the user to disable / turn off automatically a button when a pin 
+                              is / becomes in this specified state.  (CAUTION: does not work with inputs pins for now)
 ```
 
 The config is parsed at the start of the board, if any settings are invalid, the buttons will not function.
@@ -143,3 +146,8 @@ To activate a button preset
 or to reset a group
 
 `/api/BUT/<group[a-d]>/OFF`
+
+### Special inputs
+
+IO14 (INP1) - enables "lock" mode - this disables pressing any button while this pin is high
+IO16 (INP3) - enables "panic" mode (on low) - after activating, each preset will go to the default state (all buttons off)

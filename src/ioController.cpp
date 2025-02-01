@@ -2,13 +2,7 @@
 #include "ioController.h"
 #include "ioControllerTypes.h"
 #include "gracefulRestart.h"
-
-extern bool isrPinsChangedFlag;
-
-void IRAM_ATTR input_pins_isr() {
-  isrPinsChangedFlag = true;
-  // digitalWrite(PIN_LED_STATUS,~digitalRead(PIN_LED_STATUS));
-}
+#include "commonFwUtils.h"
 
 bool isOutputType(antControllerIoType_t ioType){
   return ioType == MOSFET ||
@@ -17,6 +11,15 @@ bool isOutputType(antControllerIoType_t ioType){
          ioType == TTL;
 }
 
+void IoController::setDefaultState(){
+    for (auto &e: expanders){
+        e.write(PCA95x5::Level::L_ALL);
+    }
+    for (auto bGroup: Config.button_groups){
+        buttonHandler.resetOutputsForButtonGroup(bGroup.first);
+    }
+    locked = false;
+}
 
 retCode_t IoController::init_controller_objects(){
     init_expander(&expanders[EXP_MOSFETS], EXP_MOS_ADDR );
@@ -29,13 +32,7 @@ retCode_t IoController::init_controller_objects(){
     ioGroups.push_back(new O_group(TTL,   &expanders[EXP_OPTO_TTL], 8, 0));
     ioGroups.push_back(new I_group(INP,   PIN_IN_BUFF_ENA, &input_pins));
 
-    for (auto &e: expanders){
-        e.write(PCA95x5::Level::L_ALL);
-    }
-    for (auto bGroup: Config.button_groups){
-        buttonHandler.resetOutputsForButtonGroup(bGroup.first);
-    }
-
+    setDefaultState();
     return RET_OK;
 }
 
@@ -66,6 +63,8 @@ DynamicJsonDocument IoController::getIoControllerState(){
     }
     buttonHandler.getState(retJson);
 
+    retJson["locked"] = locked;
+    retJson["panic"] = inPanic;
     retJson["msg"] = "OK";
     retJson["retCode"] = 200;
     ALOGT("Json bufer {}/{}b", retJson.memoryUsage(), retJson.capacity());
@@ -73,23 +72,45 @@ DynamicJsonDocument IoController::getIoControllerState(){
     return retJson;
 }
 
+DynamicJsonDocument IoController::returnApiUnavailable(DynamicJsonDocument& retJson){
+    std::string msg = "Controller is ";
+
+    if (inPanic){
+        msg +="in panic mode";
+    } else {
+        msg += "locked";
+    }
+    ALOGW(msg.c_str());
+    retJson["msg"] = msg;
+    return retJson;
+
+    retJson["msg"] = "ERR: " + msg;
+    return retJson;
+}   
+
 DynamicJsonDocument IoController::handleApiCall(std::vector<std::string>& api_call){
     DynamicJsonDocument retJson(1024);
 
-    if (api_call[0] == "BUT"){
-        std::string ret = buttonHandler.apiAction(api_call)? "OK" : "ERR";
-        retJson["msg"] = ret;
-        return retJson;
-    }
     if (api_call[0] == "INF"){
         return getIoControllerState();
     }
     if (api_call[0] == "RST"){
+        setDefaultState();
         gracefulRestart();
         retJson["msg"] = "OK";
     }
+
+    if (api_call[0] == "BUT"){
+        if ((locked)||(inPanic)){ return returnApiUnavailable(retJson);}
+
+        std::string ret = buttonHandler.apiAction(api_call)? "OK" : "ERR";
+        retJson["msg"] = ret;
+        return retJson;
+    }
     for(IoGroup* group: ioGroups){
         if (group->tag == api_call[0]){
+            if ((locked)||(inPanic)){ return returnApiUnavailable(retJson);}
+
             return group->apiAction(api_call);
         }
     }
@@ -119,4 +140,71 @@ bool IoController::getIoValue(antControllerIoType_t ioType, int pin_num){
     }
     ALOGE("IO type {} not found", ioTypeMap.at(ioType));
     return false;
+}
+
+void IoController::attachNotifyTaskHandle(TaskHandle_t taskHandle){
+    notifyTaskHandle = taskHandle;
+}
+
+void IoController::notifyAttachedTask(){
+    if (notifyTaskHandle != NULL){
+        xTaskNotifyGive(notifyTaskHandle);
+        ALOGT("Notifying task {}", notifyTaskHandle);
+    }
+}
+
+void IoController::setPanic(bool shouldPanic){
+    if (shouldPanic == inPanic) return;
+
+    if (shouldPanic == false){
+        ALOGV("exit panic mode.");
+        inPanic = false;
+    } else {
+        setDefaultState();
+        ALOGV("Panic! outputs set to default");
+        inPanic = true;
+    }
+
+    notifyAttachedTask();
+}
+
+void IoController::setLocked(bool shouldLock){
+    if (shouldLock == locked) return;
+    locked = shouldLock;
+
+    notifyAttachedTask();
+}
+
+void WatchdogTask(void *parameter){
+    IoController* ioController = (IoController*)parameter;
+    int loop = 0;
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    for( ;; ){
+        if (digitalRead(PIN_INPUT_1) == HIGH){
+            ioController->setLocked(true);
+        } else {
+            ioController->setLocked(false);
+        }
+
+        if (digitalRead(PIN_INPUT_3) == LOW){
+            ioController->setPanic(true);
+        } else {
+            ioController->setPanic(false);
+        }
+
+        if (loop++ % 4 == 0){
+            if (ioController->locked){
+                handle_io_pattern(PIN_LED_STATUS, PATTERN_ERR);
+            } else {
+                handle_io_pattern(PIN_LED_STATUS, PATTERN_HBEAT);
+            }    
+        }        
+        vTaskDelayUntil( &xLastWakeTime, 25 / portTICK_PERIOD_MS);
+    }
+}
+
+void IoController::spawnWatchdogTask(){
+    xTaskCreate( WatchdogTask, "IoC Watchdog",
+            4000, this, 20, NULL );
 }

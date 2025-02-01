@@ -38,8 +38,6 @@ typedef enum {
 
 bool isOutputType(antControllerIoType_t ioType);
 
-void IRAM_ATTR input_pins_isr();
-
 
 const std::map<antControllerIoType_t, const char*> ioTypeMap = {
     {MOSFET, "MOS"},

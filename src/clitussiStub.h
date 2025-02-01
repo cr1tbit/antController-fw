@@ -1,5 +1,10 @@
 #pragma once
 
+/*
+ *   Copyright (c) 2025 Jakub Sadowski
+ *   MIT license
+ */
+
 #include <vector>
 #include <string>
 #include <Arduino.h>
@@ -25,6 +30,15 @@ public:
             for (auto& [filter, cb]: Callbacks){
                 Serial.println(filter.c_str());
             }
+        });
+
+        this->attachCommandCb("ip", [this](std::string cmd){
+            Serial.print("Status: ");
+            Serial.println(WiFi.status());
+
+            Serial.print("Local IP: http://");
+            Serial.print(WiFi.localIP());
+            Serial.println("/");
         });
     }
 

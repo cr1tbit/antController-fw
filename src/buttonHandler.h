@@ -23,6 +23,7 @@ public:
     bool activateButtonFromGroup(const std::string& bGroup, button_t button);
     bool setButton(button_t button, bool targetState);
     void getState(DynamicJsonDocument& jsonRef);
+    bool checkInputPinGuards();
 
 private:
     std::string tag;
