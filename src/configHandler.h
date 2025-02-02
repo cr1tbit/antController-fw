@@ -144,6 +144,31 @@ public:
         }
     }
 
+
+    std::vector<std::tuple<pin_t&, pinGuard_t&>> gatherGuards( bool inputOnly = false, 
+        std::string forPinName = "", std::string forButtonName = ""
+    ){
+        std::vector<std::tuple<pin_t&, pinGuard_t&>> guards;
+
+        for (auto& pin: pins){
+            if (inputOnly && (pin.ioType != INP)){
+                continue;
+            }
+            if ((forPinName != "") && (pin.name != forPinName)){
+                continue;
+            }
+            for (auto& guard: pin.pinGuards){
+                if ((forButtonName != "") && (guard.guardedButton != forButtonName)){
+                    continue;
+                }
+                guards.push_back(std::forward_as_tuple(pin, guard));
+                ALOGT("push pin |{}| guards button |{}|", pin.name, guard.guardedButton);
+            }
+        }
+        ALOGT("gathered {} guards", guards.size());
+        return guards;
+    }
+
     button_t& getButtonByName(const std::string& name){
         for(auto& bg : button_groups){
             for(auto& b : bg.second.buttons){

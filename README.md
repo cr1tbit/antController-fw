@@ -137,7 +137,7 @@ disable_on_high = ["Z2-3"] <- allow the user to disable / turn off automatically
 
 The config is parsed at the start of the board, if any settings are invalid, the buttons will not function.
 
-### Button API
+## Button API
 
 To activate a button preset
 
@@ -147,7 +147,48 @@ or to reset a group
 
 `/api/BUT/<group[a-d]>/OFF`
 
+## Invalid preset protection features
+
+Antcontroller provides a method to prevent undesirable system configurations. For example, some presets may damage an amplifier, if 
+currently a wrong antenna is connected.
+
+The first method is provided by the button groups itself - only one button in a group may be active, and they work in a "break-before-make".
+Please note - there are no guarantees, how big is the time gap between disabling prevous and the current button, but it should not exceed 1ms in normal circumstances.
+
+The second method is set up by adding a "disable_on_low" or "disable_on_high" parameter for the button. This way, user may specify when a specific preset must not be active, when a pin is in a specific state. This is called a "pinGuard", and requires a bit more explanation.
+
+### Pin guards
+
+At the start of the program, when parsing each button config, we gather every pin from `disable_on_low/high`. Then, a "guard" is attached to it.
+
+After reading the configuration is complete, each pin may "guard" one or more buttons. A single "pinGuard" looks like this:
+
+``` C
+typedef struct {
+    bool onHigh;
+    std::string guardedButton;
+} pinGuard_t;
+```
+
+The pinGuard my be triggered in 3 ways:
+
+1. The system will prevent activating a button, if it's prevented by any pinGuard.
+2. When a button is pressed, each pin that will be activated will run a pinGuard check, and disable any other conflicting buttons, before finally activatng the requested one (thus handling the break-before-make principle) - TODO: NOT TRUE CURRENTLY
+3. When any input pin changes its' state, pinGuards for each input pins will be reevaluated, and conflicting buttons will be immediatelly turned off.
+
+
+Words of caution:
+1. currently "disable_on_low" guard will not work properly for the output pins. Fixing this requires a complicated architecture rewrite in the future.
+2. Inputs state is being updated every 25 miliseconds, this introduces a delay between an external signal happening, and a guarded button being disabled. This also means, that signals shorter than 25ms might not be detected. The operating frequency may be changed in the code, but setting it too low may starve the resources too much.
+3. PinGuards for the input pins are only asserted, when any of the inputs change. However, currently checking the input pinGuards is not very optimal (and needs another rewrite). When any input pin (not nessesarily with a pinGuard attached) is floating, or connected to a fast-changing signal, it may seriously slow down or even crash the device.
+
+This rewrite is needed, because:
+1. Interfacing between groups/pins/guards is based on "string" names, not the binary structures. This means a lot of "strcmp" operations
+2. Mentioned above objects have been defined in a very chaotic way. TODO: explain better
+3. Some operations are not optimized, and require traversing object vectors in 3-level "for" loops.
+4. Software debounce should be added to input watchdog task.
+
 ### Special inputs
 
-IO14 (INP1) - enables "lock" mode - this disables pressing any button while this pin is high
+IO15 (INP2) - enables "lock" mode - this disables pressing any button while this pin is high
 IO16 (INP3) - enables "panic" mode (on low) - after activating, each preset will go to the default state (all buttons off)

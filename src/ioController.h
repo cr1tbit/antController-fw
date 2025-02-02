@@ -93,6 +93,7 @@ class IoGroup {
     virtual void resetOutputs() = 0;
     virtual void getState(JsonObject& jsonRef) = 0;
     virtual bool isPinHigh(int pin_num) = 0;
+    virtual uint16_t get_bits() = 0;
 
   private:
     virtual void ioOperation(DynamicJsonDocument& jsonRef) = 0;
@@ -146,7 +147,7 @@ class O_group : public IoGroup {
       return true;
     }
 
-    uint16_t get_output_bits(){
+    uint16_t get_bits(){
       uint16_t bits = expander->read();
       bits >>= out_offs;
       bits &= (0xFFFF >> 16-out_num);
@@ -210,7 +211,7 @@ class O_group : public IoGroup {
         if (value.length() == 0){
           //read pins
           appendJsonStatus(jsonRef, true, "Read bits ok");
-          jsonRef["bits"] = get_output_bits();
+          jsonRef["bits"] = get_bits();
           return;
         }
         int bits = intFromString(value);
@@ -231,7 +232,7 @@ class O_group : public IoGroup {
     void getState(JsonObject& jsonRef){
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
       currentTagData["type"] = "output";
-      currentTagData["bits"] = get_output_bits();
+      currentTagData["bits"] = get_bits();
       currentTagData["ioNum"] = out_num;
       return;
     }
@@ -276,7 +277,7 @@ class I_group: public IoGroup {
         return digitalRead((*pins)[pin_num]);
     }
 
-    uint16_t get_input_bits(){
+    uint16_t get_bits(){
       uint16_t res = 0x00;
       for (int iInput = 0; iInput < pins->size(); iInput++){
         if (isPinHigh(iInput)){
@@ -293,7 +294,7 @@ class I_group: public IoGroup {
       std::string value = jsonRef["value"].as<std::string>();
       if (parameter == "bits"){
         appendJsonStatus(jsonRef, true, "Read ok");
-        jsonRef["bits"] = get_input_bits();
+        jsonRef["bits"] = get_bits();
         return;
       } else {
         appendJsonStatus(jsonRef, false, "ERR: invalid parameter");
@@ -304,7 +305,7 @@ class I_group: public IoGroup {
     void getState(JsonObject& jsonRef){
       JsonObject currentTagData = jsonRef.createNestedObject(tag);
       currentTagData["type"] = "input";
-      currentTagData["bits"] = get_input_bits();
+      currentTagData["bits"] = get_bits();
       currentTagData["ioNum"] = pins->size();
       return;
     }
@@ -329,11 +330,15 @@ public:
     DynamicJsonDocument handleApiCall(std::vector<std::string>& api_call);
     void setOutput(antControllerIoType_t ioType, int pin_num, bool val);
     bool getIoValue(antControllerIoType_t ioType, int pin_num);
+    uint16_t getGroupBits(antControllerIoType_t ioType);
+
     DynamicJsonDocument getIoControllerState();
     DynamicJsonDocument returnApiUnavailable(DynamicJsonDocument& jsonRef);
 
     void setLocked(bool shouldLock);
     void setPanic(bool shouldPanic);
+
+    void notifyOnBitsChange(uint16_t bits);
     void attachNotifyTaskHandle(TaskHandle_t taskHandle);
     void notifyAttachedTask();
     void spawnWatchdogTask();

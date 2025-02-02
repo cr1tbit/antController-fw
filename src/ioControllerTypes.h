@@ -58,7 +58,7 @@ public:
     std::string name;
     std::string sch;
 
-    std::vector<pinGuard_t> guardedButtonNames;
+    std::vector<pinGuard_t> pinGuards;
 
     antControllerIoType_t ioType;
     int ioNum;
@@ -71,9 +71,9 @@ public:
         std::string ret = fmt::format("{}: {}[{}] ({})",
             name, ioTypeMap.at(ioType), ioNum, sch);
         
-        if (guardedButtonNames.size() != 0){
+        if (pinGuards.size() > 0){
             ret += " - guards buttons: ";
-            for (auto& g : guardedButtonNames){
+            for (auto& g : pinGuards){
                 ret += fmt::format("('{}'@{})", g.guardedButton,g.onHigh ? "high" : "low" );
             }
         }        
@@ -84,7 +84,7 @@ public:
         pinGuard_t guard;
         guard.onHigh = onHigh;
         guard.guardedButton = buttonName;
-        guardedButtonNames.push_back(guard);
+        pinGuards.push_back(guard);
     }
 
     int numFromName(const std::string& numText){

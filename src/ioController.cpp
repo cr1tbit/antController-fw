@@ -142,6 +142,15 @@ bool IoController::getIoValue(antControllerIoType_t ioType, int pin_num){
     return false;
 }
 
+uint16_t IoController::getGroupBits(antControllerIoType_t ioType){
+    for (auto& g: ioGroups){
+        if (g->ioType == ioType){
+            return g->get_bits();
+        }
+    }
+    return 0; //TODO handle errors?
+}
+
 void IoController::attachNotifyTaskHandle(TaskHandle_t taskHandle){
     notifyTaskHandle = taskHandle;
 }
@@ -175,13 +184,25 @@ void IoController::setLocked(bool shouldLock){
     notifyAttachedTask();
 }
 
-void WatchdogTask(void *parameter){
-    IoController* ioController = (IoController*)parameter;
+void IoController::notifyOnBitsChange(uint16_t bits){
+    static uint16_t lastBits = 0;
+
+    if (bits == lastBits) return;
+    lastBits = bits;
+
+    //TODO: optimize this so only changed bits are checked.
+    buttonHandler.recheckPinGuards(true);
+    notifyAttachedTask();
+}
+
+void WatchdogTask(void *p_ioController){
+    IoController* ioController = (IoController*)p_ioController;
     int loop = 0;
+
     TickType_t xLastWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     for( ;; ){
-        if (digitalRead(PIN_INPUT_1) == HIGH){
+        if (digitalRead(PIN_INPUT_2) == HIGH){
             ioController->setLocked(true);
         } else {
             ioController->setLocked(false);
@@ -192,6 +213,7 @@ void WatchdogTask(void *parameter){
         } else {
             ioController->setPanic(false);
         }
+        ioController->notifyOnBitsChange(ioController->getGroupBits(INP));
 
         if (loop++ % 4 == 0){
             if (ioController->locked){
