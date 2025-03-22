@@ -96,7 +96,7 @@ bool ButtonHandler::activateButtonFromGroup(const std::string& bGroupName, butto
         addUniquePin(pinsToActivate, pin);
     }
 
-    // works badly currently, disable for now
+    // works unreliably currently, disable for now
 
     // // assert buttons guarded by to-be enabled pins
     // for (auto& pin: pinsToActivate){

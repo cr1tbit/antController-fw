@@ -13,6 +13,8 @@
 #include "ioControllerTypes.h"
 #include <fmt/ranges.h>
 
+#define MAX_FILE_SIZE 6000
+
 class Config_ {
 public:
     Config_() = default;
@@ -24,21 +26,30 @@ public:
 
     #ifdef ESP32
     bool loadConfig(const char* name){
-        File file = LittleFS.open(name, "r", false);
+        try{
+            File file = LittleFS.open(name, "r", false);
 
-        if(!file.available()){
-            ALOGD("config file not found");
+            if(!file.available()){
+                ALOGD("config file not found");
+                return false;
+            } else {
+                std::istringstream istr(file.readString().c_str());
+                // ALOGHD(istr.str().c_str(), istr.str().length());
+
+                istr.seekg(0, std::ios::end);
+                int size = istr.tellg();
+                ALOGD("loaded {}.{}kB toml file", size/1000, size%1000);
+                // if (size > MAX_FILE_SIZE){
+                //     throw std::runtime_error("File too large, abort");
+                // }
+                istr.seekg(0, std::ios::beg);
+
+                return parseToml(istr, name);
+            }
+        } catch (std::runtime_error& e){
+            ALOGE("Error loading config");
+            ALOGE(e.what());
             return false;
-        } else {
-            std::istringstream istr(file.readString().c_str());
-            // ALOGHD(istr.str().c_str(), istr.str().length());
-
-            istr.seekg(0, std::ios::end);
-            int size = istr.tellg();
-            ALOGD("loaded {}B toml file", size);
-            istr.seekg(0, std::ios::beg);
-
-            return parseToml(istr, name);
         }
     }
     #endif

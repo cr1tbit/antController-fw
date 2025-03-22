@@ -26,6 +26,9 @@
 #include "clitussiStub.h"
 
 const char CONFIG_FILE[] = "/buttons.conf";
+const char CONFIG_FALLBACK[] = "/buttons_simple.conf";
+
+static const char *config_filename = CONFIG_FILE;
 
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
@@ -95,10 +98,10 @@ DynamicJsonDocument mainHandleApiCall(const std::string &subpath, int* ret_code,
 }
 
 bool initializeLittleFS(){
-    if(!LittleFS.begin(false)){
-        ALOGE("An Error has occurred while mounting SPIFFS");
-        ALOGE("Is filesystem properly generated and uploaded?");
-        ALOGE("(Note, in debug build filesystem does not autoformate)");
+    if(!LittleFS.begin(true)){
+        // ALOGE("An Error has occurred while mounting SPIFFS");
+        // ALOGE("Is filesystem properly generated and uploaded?");
+        // ALOGE("(Note, in debug build filesystem does not autoformate)");
         return false;
     } else {
         ALOGD("LittleFS init ok.");
@@ -120,7 +123,7 @@ void initializeHttpServer(){
 
     server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
         ALOGD("GET config");
-        request->send(LittleFS, CONFIG_FILE, "text/plain", false);
+        request->send(LittleFS, config_filename, "text/plain", false);
     });
 
     server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -217,17 +220,25 @@ void setup(){
 
     if (initializeLittleFS()){
         ALOGT("LittleFS init ok.");
+
+        if (digitalRead(PIN_BUT4) == LOW){
+            ALOGI("Button 4 is pressed - the device will load a default config");
+            config_filename = CONFIG_FALLBACK;
+        }
+    
         // spawn on another task because main arduino task
         // has hardcoded 8kb stack size
         bool taskCreated = xTaskCreate( TomlTask, "toml task",
-                65536, NULL, 6, NULL );
+                100*1000, (void*) config_filename, 6, NULL );
         if (taskCreated != pdPASS) {
             ALOGE("Failed to create TOML task");
-            deviceHasValidState = false;
+            deviceHasValidState = false;    
         }
     } else { 
         deviceHasValidState = false;
     }
+
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
 
     apiCallSemaphore = xSemaphoreCreateMutex();
     xTaskCreate( SerialTerminalTask, "serial task",
@@ -245,7 +256,7 @@ void setup(){
     };
 
     WiFiSettings.connect();//will require board reboot after setup
-    ALOGI("IP: {}",WiFi.localIP());
+    ALOGI("IP: http://{}/",WiFi.localIP());
     initializeHttpServer();
 
     ALOGI("Application start!");
@@ -297,20 +308,24 @@ void loop()
 
 void TomlTask(void *parameter)
 {
+    const char* config = (const char*) parameter; 
     ALOGV("TOMl task start");
     vTaskDelay(50 / portTICK_PERIOD_MS);
-    while (1)
-    {
-        if (Config.loadConfig(CONFIG_FILE)){
-            Config.printConfig();
-            ALOGI("TomlTask done. Connecting to WiFi...");
-        } else {
-            vTaskDelay(3000 / portTICK_PERIOD_MS);
-            ALOGE("Config load failed");
-        }
 
-        vTaskDelete(NULL);
+    if (Config.loadConfig(config) == false){
+        deviceHasValidState = false;
+        ALOGE("Config load failed. Attempt fallback");
+        config_filename = CONFIG_FALLBACK;
+        if (Config.loadConfig(config_filename) == false){
+            ALOGE("Fallback config load failed.");            
+        } else {
+            ALOGW("WARNING - Fallback config loaded.");
+        }
     }
+
+    Config.printConfig();
+    ALOGI("TomlTask done. Connecting to WiFi...");
+    vTaskDelete(NULL);
 }
 
 void SerialTerminalTask(void *parameter)
@@ -334,7 +349,11 @@ void SerialTerminalTask(void *parameter)
         ALOGI("IMPROV command received");
     });
 
-    clitussi.attachCommandCb("",[](std::string cmd){
+    clitussi.attachCommandCb("restart",[](std::string cmd){
+        gracefulRestart();
+    });
+
+    clitussi.attachCommandCb("API",[](std::string cmd){
         int ret_code;
 
         ALOGV("Op result: {}",

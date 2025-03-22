@@ -202,13 +202,13 @@ void WatchdogTask(void *p_ioController){
     TickType_t xLastWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     for( ;; ){
-        if (digitalRead(PIN_INPUT_2) == HIGH){
+        if (digitalRead(PIN_INPUT_1) == LOW){
             ioController->setLocked(true);
         } else {
             ioController->setLocked(false);
         }
 
-        if (digitalRead(PIN_INPUT_3) == LOW){
+        if (digitalRead(PIN_INPUT_3) == HIGH){
             ioController->setPanic(true);
         } else {
             ioController->setPanic(false);
