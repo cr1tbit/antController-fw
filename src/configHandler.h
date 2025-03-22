@@ -15,6 +15,8 @@
 
 #define MAX_FILE_SIZE 6000
 
+void configLoaderTask(void *parameter);
+
 class Config_ {
 public:
     Config_() = default;
@@ -24,7 +26,23 @@ public:
         return instance;
     }
 
-    #ifdef ESP32
+    int getStreamSize(std::istringstream& istr){
+        istr.seekg(0, std::ios::end);
+        int size = istr.tellg();
+        istr.seekg(0, std::ios::beg);
+        return size;
+    }
+
+    void clearPresets(){
+        pins.clear();
+        button_groups.clear();
+        config_filename = "undefined";
+    }
+
+    // void setConfigFilename(const char* name){
+    //     config_filename = name;
+    // }
+
     bool loadConfig(const char* name){
         try{
             File file = LittleFS.open(name, "r", false);
@@ -34,100 +52,96 @@ public:
                 return false;
             } else {
                 std::istringstream istr(file.readString().c_str());
-                // ALOGHD(istr.str().c_str(), istr.str().length());
 
-                istr.seekg(0, std::ios::end);
-                int size = istr.tellg();
-                ALOGD("loaded {}.{}kB toml file", size/1000, size%1000);
-                // if (size > MAX_FILE_SIZE){
-                //     throw std::runtime_error("File too large, abort");
-                // }
-                istr.seekg(0, std::ios::beg);
-
+                int size = getStreamSize(istr);
+                ALOGD("parsing {} ({}.{}kB)", name, size/1000, size%1000);
                 return parseToml(istr, name);
             }
+            file.close();
         } catch (std::runtime_error& e){
-            ALOGE("Error loading config");
+            ALOGE("Error parsing {}", name);
             ALOGE(e.what());
             return false;
         }
     }
-    #endif
 
     bool parseToml(std::istringstream& istr, const char* name){
         try {
             auto data = toml::parse(istr, name);
-            const auto version = toml::find<std::string>(data, "version");
-            ALOGD("Config version: {}", version);
-
-            int statPinCount = parsePins(data);            
+            
+            int statPinCount = parsePins(data);
             int statButtonCount = parseButtons(data);
 
-            // int statCondCount = parseCondRules(data);            
-            // assignPinsToButtonGroup();
-
             is_valid = true;
-            ALOGI("Loaded {} pins, {} buttons",
-                statPinCount, statButtonCount);
+            ALOGI("Loaded {} buttons, {} pins",
+                statButtonCount, statPinCount);
             // printConfig();
             return true;
         } catch (std::exception& e){
-            ALOGE("Error parsing toml");
+            ALOGE("Error parsing toml:");
             ALOGE(e.what());
             return false;
         }
     }
 
     int parsePins(toml::value& v){
-        const auto values = toml::find(v, "pin");
-        int counter = 0;
+        try{
+            const auto values = toml::find(v, "pin");
+            int counter = 0;
 
-        for(const auto& v : values.as_array()) {
-            pin_t pin (
-                toml::find<std::string>(v,"name"),
-                toml::find<std::string>(v,"antctrl"),
-                toml::find<std::string>(v,"sch")
-            );
-            pins.push_back(pin);
-            counter++;
+            for(const auto& v : values.as_array()) {
+                pin_t pin (
+                    toml::find<std::string>(v,"name"),
+                    toml::find<std::string>(v,"antctrl"),
+                    toml::find<std::string>(v,"sch")
+                );
+                pins.push_back(pin);
+                counter++;
+            }
+            return counter;
+        } catch (std::out_of_range& e){
+            return 0;
         }
-        return counter;
     }
 
     int parseButtons(toml::value& v){
-        const auto _button_groups = toml::find(v, "buttons");
-        int counter = 0;
+        try {
+            const auto _button_groups = toml::find(v, "buttons");
+            int counter = 0;
 
-        for(const auto& bg : _button_groups.as_table()){
-            button_groups[bg.first] = {};
-            for(const auto& b : bg.second.as_array()){
-                button_t button(
-                    toml::find<std::string>(b,"name"),
-                    toml::find<std::vector<std::string>>(b,"pins")
-                );
-                if (b.contains("disable_on_low")){
-                    const std::vector<std::string>& condPinNames = 
-                        toml::find<std::vector<std::string>>(b,"disable_on_low");
+            for(const auto& bg : _button_groups.as_table()){
+                button_groups[bg.first] = {};
+                for(const auto& b : bg.second.as_array()){
+                    button_t button(
+                        toml::find<std::string>(b,"name"),
+                        toml::find<std::vector<std::string>>(b,"pins")
+                    );
+                    if (b.contains("disable_on_low")){
+                        const std::vector<std::string>& condPinNames = 
+                            toml::find<std::vector<std::string>>(b,"disable_on_low");
 
-                    for (auto& p : condPinNames){
-                        pin_t& pin = getPinByName(p);
-                        pin.setGuard(button.name, false);
+                        for (auto& p : condPinNames){
+                            pin_t& pin = getPinByName(p);
+                            pin.setGuard(button.name, false);
+                        }
                     }
-                }
-                if (b.contains("disable_on_high")){
-                    const std::vector<std::string>& condPinNames = 
-                        toml::find<std::vector<std::string>>(b,"disable_on_high");
+                    if (b.contains("disable_on_high")){
+                        const std::vector<std::string>& condPinNames = 
+                            toml::find<std::vector<std::string>>(b,"disable_on_high");
 
-                    for (auto& p : condPinNames){
-                        pin_t& pin = getPinByName(p);
-                        pin.setGuard(button.name, true);
+                        for (auto& p : condPinNames){
+                            pin_t& pin = getPinByName(p);
+                            pin.setGuard(button.name, true);
+                        }
                     }
+                    counter++;
+                    button_groups[bg.first].buttons.push_back(button);
                 }
-                counter++;
-                button_groups[bg.first].buttons.push_back(button);
             }
+            return counter;
+        } catch (std::out_of_range& e){
+            return 0;
         }
-        return counter;
     }
 
     pin_t& getPinByName(const std::string& name, bool assertDuplicates = false){
@@ -210,11 +224,20 @@ public:
         }
     }
 
+    void trySpawnLoaderTask(const char* config_filename){
+        bool taskCreated = xTaskCreate( configLoaderTask, "toml task",
+            100*1000, (void*) config_filename, 6, NULL );
+        if (taskCreated != pdPASS) {
+            ALOGE("Failed to create TOML task");
+        }
+    }
+
     bool is_valid = false;
 
     std::map<std::string, buttonGroup_t> button_groups;
     // std::map<std::string, std::vector<const pin_t*>> pins_by_group;
     std::vector<pin_t> pins;
+    std::string config_filename = "undefined";
 };
 
 extern Config_ &Config;

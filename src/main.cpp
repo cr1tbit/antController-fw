@@ -28,15 +28,12 @@
 const char CONFIG_FILE[] = "/buttons.conf";
 const char CONFIG_FALLBACK[] = "/buttons_simple.conf";
 
-static const char *config_filename = CONFIG_FILE;
-
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
 
 IoController ioController;
 
 bool shouldPostSocketUpdate = false;
-bool deviceHasValidState = true;
 
 clitussiStub clitussi;
 
@@ -110,9 +107,6 @@ bool initializeLittleFS(){
             LittleFS.usedBytes()/1024,
             LittleFS.totalBytes()/1024
         );
-
-        ALOGD_RAW("Files:")
-        listDir(LittleFS, "/");
         return true;
     }
 }
@@ -123,7 +117,7 @@ void initializeHttpServer(){
 
     server.on("/api/config", HTTP_GET, [](AsyncWebServerRequest *request){
         ALOGD("GET config");
-        request->send(LittleFS, config_filename, "text/plain", false);
+        request->send(LittleFS, Config.config_filename.c_str(), "text/plain", false);
     });
 
     server.on("/api", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -212,6 +206,8 @@ void setup(){
 
     AlfaLogger.begin();
     ALOGD("logger started");
+    ALOGV("last reset reason: {}", getResetReasonStr());
+
     ALOG_I2CLS(i2c);
 
     ioController.begin(i2c);
@@ -220,22 +216,19 @@ void setup(){
 
     if (initializeLittleFS()){
         ALOGT("LittleFS init ok.");
+        static const char *config_filename = CONFIG_FILE;
 
         if (digitalRead(PIN_BUT4) == LOW){
-            ALOGI("Button 4 is pressed - the device will load a default config");
+            ALOGI("Button 4 was pressed during launch - "
+                "the device will load a fallback config");            
+            config_filename = CONFIG_FALLBACK; //todo hardcoded config complied in
+        } else if (lastRestartFaulty()){
+            ALOGI("Last restart was faulty - loading fallback config");
             config_filename = CONFIG_FALLBACK;
         }
-    
         // spawn on another task because main arduino task
         // has hardcoded 8kb stack size
-        bool taskCreated = xTaskCreate( TomlTask, "toml task",
-                100*1000, (void*) config_filename, 6, NULL );
-        if (taskCreated != pdPASS) {
-            ALOGE("Failed to create TOML task");
-            deviceHasValidState = false;    
-        }
-    } else { 
-        deviceHasValidState = false;
+        Config.trySpawnLoaderTask(config_filename);
     }
 
     vTaskDelay(3000 / portTICK_PERIOD_MS);
@@ -306,27 +299,6 @@ void loop()
     }
 }
 
-void TomlTask(void *parameter)
-{
-    const char* config = (const char*) parameter; 
-    ALOGV("TOMl task start");
-    vTaskDelay(50 / portTICK_PERIOD_MS);
-
-    if (Config.loadConfig(config) == false){
-        deviceHasValidState = false;
-        ALOGE("Config load failed. Attempt fallback");
-        config_filename = CONFIG_FALLBACK;
-        if (Config.loadConfig(config_filename) == false){
-            ALOGE("Fallback config load failed.");            
-        } else {
-            ALOGW("WARNING - Fallback config loaded.");
-        }
-    }
-
-    Config.printConfig();
-    ALOGI("TomlTask done. Connecting to WiFi...");
-    vTaskDelete(NULL);
-}
 
 void SerialTerminalTask(void *parameter)
 {   
@@ -360,6 +332,27 @@ void SerialTerminalTask(void *parameter)
             mainHandleApiCall(
                 cmd, &ret_code, API_SOURCE_SERIAL)
                 .as<std::string>(),ret_code);
+    });
+
+    clitussi.attachCommandCb("ls",[](std::string cmd){
+        listDir(LittleFS, "/");
+    });
+
+    clitussi.attachCommandCb("cfg",[](std::string cmd){
+        Config.printConfig();
+    });
+
+    clitussi.attachCommandCb("reise",[](std::string cmd){
+        throw std::runtime_error("reise");
+    });
+
+    // crashes currently, warning
+    clitussi.attachCommandCb("load",[](std::string cmd){
+        static char cfg[32];
+        cfg[0] = '/';
+        sscanf(cmd.c_str(), "load %30s", cfg+1);
+
+        Config.trySpawnLoaderTask(cfg);
     });
 
     for (;;){

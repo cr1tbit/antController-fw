@@ -3,3 +3,5 @@
 
 
 void gracefulRestart();
+const char* getResetReasonStr();
+bool lastRestartFaulty();
